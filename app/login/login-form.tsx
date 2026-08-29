@@ -7,13 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { initialLoginState, login } from "./actions";
+import { login, type LoginState } from "./actions";
+
+const initialState: LoginState = { error: null };
 
 export function LoginForm({ redirectTo }: { redirectTo: string }) {
-  const [state, formAction, isPending] = useActionState(
-    login,
-    initialLoginState,
-  );
+  const [state, formAction, isPending] = useActionState(login, initialState);
 
   return (
     <form action={formAction} className="space-y-4">

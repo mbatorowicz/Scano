@@ -6,7 +6,7 @@ jako procent od wartości brutto.
 
 ## Lista kroków
 
-- [ ] **Etap 1** — Fundament: Next.js + Tailwind + shadcn/ui, layout PWA, Vercel, Neon, Blob, logowanie hasłem
+- [x] **Etap 1** — Fundament: Next.js + Tailwind + shadcn/ui, layout PWA, Vercel, Neon, Blob, logowanie hasłem
 - [ ] **Etap 2** — Baza: schemat Drizzle, migracje, warstwa zapytań, wyliczanie prowizji
 - [ ] **Etap 3** — Odczyt AI: Gemini + schemat Zod, endpoint `/api/scan`, upload zdjęcia
 - [ ] **Etap 4** — Ekran skanowania: aparat, kompresja, formularz korekty, zapis

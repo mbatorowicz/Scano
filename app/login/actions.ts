@@ -7,8 +7,6 @@ import { startSession } from "@/lib/session";
 
 export type LoginState = { error: string | null };
 
-export const initialLoginState: LoginState = { error: null };
-
 /** Przepuszczamy tylko ścieżki wewnątrz aplikacji, żeby nie dało się przekierować na obcą domenę. */
 function safeRedirectTarget(value: FormDataEntryValue | null): string {
   if (typeof value !== "string") return "/";
