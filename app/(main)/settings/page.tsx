@@ -9,14 +9,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getSettings } from "@/lib/db/queries";
+import { formatRateValue } from "@/lib/money";
 
 import { logout } from "./actions";
+import { FeeRateForm } from "./fee-rate-form";
 
 export const metadata: Metadata = {
   title: "Ustawienia",
 };
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const { feeRate } = await getSettings();
+
   return (
     <div className="space-y-6">
       <header className="space-y-1">
@@ -30,9 +35,14 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Prowizja</CardTitle>
           <CardDescription>
-            Ustawienie stawki procentowej pojawi się tutaj w Etapie 5.
+            Zmiana dotyczy tylko faktur zapisanych od tej chwili. Każda faktura
+            trzyma stawkę, którą policzono ją przy zapisie, więc historia zostaje
+            nietknięta.
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <FeeRateForm feeRate={formatRateValue(feeRate)} />
+        </CardContent>
       </Card>
 
       <Card>

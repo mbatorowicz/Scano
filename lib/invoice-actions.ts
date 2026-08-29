@@ -1,11 +1,14 @@
 "use server";
 
+import { del } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { isInvoiceBlobPathname } from "@/lib/blob";
 import { formatDate } from "@/lib/dates";
 import {
   createInvoice,
+  deleteInvoice,
   findDuplicateInvoice,
   updateInvoice,
   type InvoiceInput,
@@ -112,4 +115,24 @@ export async function saveInvoice(
     console.error("Zapis faktury nie udał się", cause);
     return failure("Zapis się nie udał. Spróbuj jeszcze raz.");
   }
+}
+
+/** Usunięcie faktury razem ze zdjęciem — trzymanie go bez wiersza nie ma sensu. */
+export async function removeInvoice(formData: FormData): Promise<void> {
+  if (!(await hasValidSession())) redirect("/login");
+
+  const id = readId(formData);
+  if (id === null) return;
+
+  const removed = await deleteInvoice(id);
+
+  if (removed?.imagePathname) {
+    await del(removed.imagePathname).catch((cause) => {
+      // Wiersza już nie ma, więc osierocone zdjęcie to najwyżej zajęte miejsce.
+      console.error("Nie udało się usunąć zdjęcia faktury", cause);
+    });
+  }
+
+  revalidatePath("/");
+  redirect("/");
 }

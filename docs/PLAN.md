@@ -10,7 +10,7 @@ jako procent od wartości brutto.
 - [x] **Etap 2** — Baza: schemat Drizzle, migracje, warstwa zapytań, wyliczanie prowizji
 - [x] **Etap 3** — Odczyt AI: Gemini + schemat Zod, endpoint `/api/scan`, upload zdjęcia
 - [x] **Etap 4** — Ekran skanowania: aparat, kompresja, formularz korekty, zapis
-- [ ] **Etap 5** — Lista faktur, szczegóły, ustawienia, eksport CSV
+- [x] **Etap 5** — Lista faktur, szczegóły, ustawienia, eksport CSV
 - [ ] **Etap 6** — Wdrożenie na Vercel i test na telefonie
 
 Każdy etap jest samodzielny: zaczyna się od opisu stanu wyjściowego i kończy kryterium
@@ -56,11 +56,11 @@ app/
   (main)/page.tsx            lista faktur
   (main)/scan/page.tsx       ekran skanowania (stawka prowizji z ustawien)
   (main)/scan/scan-form.tsx  aparat, kompresja, wywolanie /api/scan
-  (main)/invoice/[id]/       szczegoly faktury                        [Etap 5]
-  (main)/settings/page.tsx   stawka prowizji
+  (main)/invoice/[id]/       szczegoly faktury: zdjecie, edycja, usuwanie
+  (main)/settings/page.tsx   stawka prowizji, wylogowanie
   api/scan/route.ts          upload zdjecia + odczyt przez Gemini
   api/image/[...path]/       serwowanie prywatnych zdjec z Blob
-  api/export/route.ts        eksport CSV                              [Etap 5]
+  api/export/route.ts        eksport CSV przefiltrowanej listy
 proxy.ts                     blokada dostepu bez zalogowania
 lib/
   db/schema.ts               tabele Drizzle
@@ -69,7 +69,9 @@ lib/
   ai/extract-invoice.ts      prompt + schemat Zod + wywolanie Gemini
   invoice-form.ts            typy i stan formularza wspolne dla klienta i serwera
   invoice-schema.ts          walidacja Zod danych z formularza
-  invoice-actions.ts         server action zapisujaca fakture
+  invoice-actions.ts         server actions: zapis i usuwanie faktury
+  invoice-filters.ts         filtry listy czytane z adresu URL
+  settings-form.ts           stan formularza ustawien
   image.ts                   kompresja zdjecia w przegladarce
   blob.ts                    sciezki i limity zdjec
   fees.ts                    wyliczanie prowizji
@@ -78,7 +80,8 @@ lib/
   auth.ts, session.ts        haslo i ciasteczko sesji
 components/
   invoice-form.tsx           formularz uzywany przy skanie i przy edycji
-  invoice-table.tsx          tabela z lp. i sumami                    [Etap 5]
+  invoice-table.tsx          tabela na duzym ekranie, karty na telefonie
+  invoice-filters.tsx        formularz filtrow (GET, bez JavaScriptu)
   bottom-nav.tsx             dolna nawigacja
 scripts/                     recznie uruchamiane sprawdzenia: db, odczyt AI, formularz
 ```
@@ -218,15 +221,16 @@ ręcznie nawet gdy AI zwróci same puste pola.
 
 **Do zrobienia:**
 
-- `app/page.tsx` — tabela: lp., data, sprzedawca, nabywca, wartość brutto, prowizja.
+- `app/(main)/page.tsx` — tabela: lp., data, sprzedawca, nabywca, wartość brutto, prowizja.
   Lp. liczone przy wyświetlaniu, a nie brane z `id`, żeby usunięcie faktury nie robiło dziur
 - podsumowanie: liczba faktur, suma wartości brutto, suma prowizji dla aktualnych filtrów
 - filtr po zakresie dat i wyszukiwarka po nazwie kontrahenta lub numerze faktury,
   stan filtrów trzymany w parametrach URL
 - na telefonie zamiast tabeli lista kart — sześć kolumn nie zmieści się na ekranie 390 px
-- `app/invoice/[id]/page.tsx` — podgląd zdjęcia w pełnym rozmiarze, edycja przez ten sam
-  `invoice-form`, usuwanie z potwierdzeniem
-- `app/settings/page.tsx` — stawka prowizji w procentach, z wyraźną informacją, że zmiana
+- `app/(main)/invoice/[id]/page.tsx` — podgląd zdjęcia w pełnym rozmiarze, edycja przez ten sam
+  `invoice-form` (prowizja liczona stawką zapisaną z fakturą), usuwanie z potwierdzeniem —
+  razem z wierszem znika też zdjęcie z Bloba
+- `app/(main)/settings/page.tsx` — stawka prowizji w procentach, z wyraźną informacją, że zmiana
   dotyczy tylko nowych faktur
 - `app/api/export/route.ts` — CSV z aktualnie przefiltrowanej listy, średnik jako separator
   i BOM UTF-8, żeby polski Excel otworzył plik poprawnie
