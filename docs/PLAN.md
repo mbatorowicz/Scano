@@ -9,7 +9,7 @@ jako procent od wartości brutto.
 - [x] **Etap 1** — Fundament: Next.js + Tailwind + shadcn/ui, layout PWA, Vercel, Neon, Blob, logowanie hasłem
 - [x] **Etap 2** — Baza: schemat Drizzle, migracje, warstwa zapytań, wyliczanie prowizji
 - [x] **Etap 3** — Odczyt AI: Gemini + schemat Zod, endpoint `/api/scan`, upload zdjęcia
-- [ ] **Etap 4** — Ekran skanowania: aparat, kompresja, formularz korekty, zapis
+- [x] **Etap 4** — Ekran skanowania: aparat, kompresja, formularz korekty, zapis
 - [ ] **Etap 5** — Lista faktur, szczegóły, ustawienia, eksport CSV
 - [ ] **Etap 6** — Wdrożenie na Vercel i test na telefonie
 
@@ -43,27 +43,44 @@ i krzywe, a AI czasem pomyli cyfrę.
 
 ## Docelowa struktura plików
 
+Trasy aplikacji siedzą w grupie `(main)`, bo layout z dolną nawigacją i sprawdzeniem
+sesji nie obejmuje ekranu logowania. Blokada dostępu to `proxy.ts`, a nie `middleware.ts` —
+w Next.js 16 plik nazywa się inaczej niż w starszych wersjach.
+
 ```
 app/
-  layout.tsx            globalny layout, dolna nawigacja, metadane PWA
-  page.tsx              lista faktur
-  scan/page.tsx         robienie zdjecia i formularz korekty
-  invoice/[id]/page.tsx szczegoly faktury
-  settings/page.tsx     stawka prowizji
-  login/page.tsx        ekran logowania haslem
-  api/scan/route.ts     upload zdjecia + odczyt przez Gemini
-  api/export/route.ts   eksport CSV
-middleware.ts           blokada dostepu bez zalogowania
+  layout.tsx                 globalny layout, metadane PWA
+  manifest.ts                manifest PWA
+  login/page.tsx             ekran logowania haslem
+  (main)/layout.tsx          dolna nawigacja, sprawdzenie sesji
+  (main)/page.tsx            lista faktur
+  (main)/scan/page.tsx       ekran skanowania (stawka prowizji z ustawien)
+  (main)/scan/scan-form.tsx  aparat, kompresja, wywolanie /api/scan
+  (main)/invoice/[id]/       szczegoly faktury                        [Etap 5]
+  (main)/settings/page.tsx   stawka prowizji
+  api/scan/route.ts          upload zdjecia + odczyt przez Gemini
+  api/image/[...path]/       serwowanie prywatnych zdjec z Blob
+  api/export/route.ts        eksport CSV                              [Etap 5]
+proxy.ts                     blokada dostepu bez zalogowania
 lib/
-  db/schema.ts          tabele Drizzle
-  db/index.ts           klient bazy
-  db/queries.ts         zapytania: lista, pojedyncza, zapis, edycja, usuwanie, ustawienia
-  ai/extract-invoice.ts prompt + schemat Zod + wywolanie Gemini
-  fees.ts               wyliczanie prowizji
-  money.ts              parsowanie i formatowanie kwot w formacie polskim
+  db/schema.ts               tabele Drizzle
+  db/index.ts                klient bazy
+  db/queries.ts              zapytania: lista, pojedyncza, zapis, edycja, usuwanie, ustawienia
+  ai/extract-invoice.ts      prompt + schemat Zod + wywolanie Gemini
+  invoice-form.ts            typy i stan formularza wspolne dla klienta i serwera
+  invoice-schema.ts          walidacja Zod danych z formularza
+  invoice-actions.ts         server action zapisujaca fakture
+  image.ts                   kompresja zdjecia w przegladarce
+  blob.ts                    sciezki i limity zdjec
+  fees.ts                    wyliczanie prowizji
+  money.ts                   parsowanie i formatowanie kwot w formacie polskim
+  dates.ts                   daty ISO
+  auth.ts, session.ts        haslo i ciasteczko sesji
 components/
-  invoice-form.tsx      formularz uzywany przy skanie i przy edycji
-  invoice-table.tsx     tabela z lp. i sumami
+  invoice-form.tsx           formularz uzywany przy skanie i przy edycji
+  invoice-table.tsx          tabela z lp. i sumami                    [Etap 5]
+  bottom-nav.tsx             dolna nawigacja
+scripts/                     recznie uruchamiane sprawdzenia: db, odczyt AI, formularz
 ```
 
 ---
@@ -189,8 +206,9 @@ z tabelą powyżej — również ze zdjęć obróconych i pogniecionych.
   o tym numerze i sprzedawcy już istnieje
 - po zapisie przekierowanie na listę i potwierdzenie w toaście
 
-**Kryterium ukończenia:** pełna droga od wybrania zdjęcia do wiersza w bazie działa lokalnie,
-a formularz da się wypełnić ręcznie nawet gdy AI zwróci same puste pola.
+**Kryterium ukończenia:** pełna droga od wybrania zdjęcia do wiersza w bazie działa lokalnie
+(`npm run form:check` sprawdza sam odcinek od `FormData` do bazy), a formularz da się wypełnić
+ręcznie nawet gdy AI zwróci same puste pola.
 
 ---
 

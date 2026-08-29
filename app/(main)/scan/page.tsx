@@ -1,26 +1,28 @@
 import type { Metadata } from "next";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { getSettings } from "@/lib/db/queries";
+import { formatRate } from "@/lib/money";
+
+import { ScanForm } from "./scan-form";
 
 export const metadata: Metadata = {
   title: "Skanowanie",
 };
 
-export default function ScanPage() {
+export default async function ScanPage() {
+  const { feeRate } = await getSettings();
+
   return (
     <div className="space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Skanuj</h1>
         <p className="text-sm text-muted-foreground">
-          Zrób zdjęcie faktury, a dane odczyta AI.
+          Zrób zdjęcie faktury, a dane odczyta AI. Prowizja liczy się według
+          stawki {formatRate(feeRate)}.
         </p>
       </header>
 
-      <Card>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          Aparat i formularz korekty pojawią się tutaj w Etapie 4.
-        </CardContent>
-      </Card>
+      <ScanForm feeRate={feeRate} />
     </div>
   );
 }

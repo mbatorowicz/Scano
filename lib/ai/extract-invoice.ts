@@ -10,6 +10,7 @@ import {
 } from "ai";
 import { z } from "zod";
 
+import { isIsoDate } from "@/lib/dates";
 import { parseAmount, sumAmounts, toMinorUnits } from "@/lib/money";
 
 /** Flash wystarcza do odczytu faktury i mieści się w darmowym limicie AI Studio. */
@@ -288,27 +289,15 @@ function isoDate(value: string | null): string | null {
   const trimmed = text(value);
   if (trimmed === null) return null;
 
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
-  if (iso) return isRealDate(iso[1], iso[2], iso[3]) ? trimmed : null;
+  if (isIsoDate(trimmed)) return trimmed;
 
   const polish = /^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})$/.exec(trimmed);
   if (polish) {
     const day = polish[1].padStart(2, "0");
     const month = polish[2].padStart(2, "0");
-    return isRealDate(polish[3], month, day)
-      ? `${polish[3]}-${month}-${day}`
-      : null;
+    const candidate = `${polish[3]}-${month}-${day}`;
+    return isIsoDate(candidate) ? candidate : null;
   }
 
   return null;
-}
-
-function isRealDate(year: string, month: string, day: string): boolean {
-  const date = new Date(`${year}-${month}-${day}T00:00:00Z`);
-  return (
-    !Number.isNaN(date.getTime()) &&
-    date.getUTCFullYear() === Number(year) &&
-    date.getUTCMonth() + 1 === Number(month) &&
-    date.getUTCDate() === Number(day)
-  );
 }
