@@ -223,10 +223,15 @@ edytować i usunąć, a wyeksportowany CSV otwiera się w Excelu z poprawnymi po
 **Kontekst startowy:** aplikacja działa lokalnie w komplecie.
 
 **Bez środowiska preview.** Jest jedno środowisko: produkcja pod
-https://scano-beta.vercel.app. Wdrażamy przez `npm run deploy` (czyli `vercel deploy --prod`),
-nie przez push do GitHuba — projekt na Vercelu nie jest podłączony do repozytorium. Dlatego
-`APP_PASSWORD`, `AUTH_SECRET` i `GOOGLE_GENERATIVE_AI_API_KEY` są ustawione tylko dla
-Production i Development; deploymenty preview i tak by nie wstały i nie są nam potrzebne.
+https://scano-beta.vercel.app. Projekt na Vercelu jest podłączony do
+https://github.com/mbatorowicz/Scano, więc push na `main` sam wdraża produkcję; `npm run deploy`
+(czyli `vercel deploy --prod`) wdraża od razu, bez commita. Pracujemy tylko na `main` —
+`APP_PASSWORD`, `AUTH_SECRET` i `GOOGLE_GENERATIVE_AI_API_KEY` są ustawione wyłącznie dla
+Production i Development, więc deployment preview z gałęzi wstanie, ale nie da się w nim
+zalogować ani odczytać faktury. Vercel nie umie wymusić produkcji dla każdej gałęzi:
+`git.deploymentEnabled` przyjmuje tylko listę konkretnych nazw, a nieokreślone gałęzie
+deployują się domyślnie.
+
 Baza Neon i Blob są wspólne dla lokalnego dev i produkcji, więc skan zrobiony lokalnie ląduje
 w tych samych danych co skan z telefonu.
 
