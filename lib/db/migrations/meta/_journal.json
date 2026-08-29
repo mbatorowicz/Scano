@@ -8,6 +8,13 @@
       "when": 1788013968125,
       "tag": "0000_sour_killmonger",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788027254164,
+      "tag": "0001_right_hannibal_king",
+      "breakpoints": true
     }
   ]
 }

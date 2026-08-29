@@ -14,14 +14,66 @@ import { isIsoDate } from "@/lib/dates";
 import { parseAmount, sumAmounts, toMinorUnits } from "@/lib/money";
 
 /** Flash wystarcza do odczytu faktury i mieści się w darmowym limicie AI Studio. */
-const MODEL = "gemini-3.5-flash";
+export const EXTRACTION_MODEL = "gemini-3.5-flash";
 
 /**
- * Jedno ponowienie, nie trzy: gdy model jest przeciążony, kolejne próby z
- * narastającą przerwą trzymają użytkownika przed pustym ekranem prawie dwie
- * minuty. Lepiej szybko powiedzieć „spróbuj jeszcze raz".
+ * Zapas na wyczerpany limit dobowy. Darmowy plan daje 20 odczytów na dobę
+ * liczonych osobno dla każdego modelu, więc gdy Flash powie „dość", Flash Lite
+ * ma jeszcze własną pulę. Czyta drobny druk gorzej, ale to i tak lepsze niż
+ * „wróć jutro" — dane i tak przechodzą przez formularz korekty.
  */
-const MAX_RETRIES = 1;
+export const FALLBACK_MODEL = "gemini-3.5-flash-lite";
+
+/** Ile odczytów na dobę daje darmowy plan AI Studio dla jednego modelu. */
+export const FREE_TIER_DAILY_LIMIT = 20;
+
+/**
+ * Rachunek za jeden odczyt to prawie wyłącznie zdjęcie i „myślenie" modelu.
+ *
+ * Zdjęcie kosztuje tyle, na ile pozwoli `mediaResolution`, niezależnie od tego,
+ * ile ma pikseli: 280 tokenów przy `LOW`, 560 przy `MEDIUM`, 1120 przy `HIGH`
+ * (tyle bierze też domyślne ustawienie). Myślenie liczy się jak tokeny wyjścia,
+ * czyli kilka razy drożej od wejścia, a Flash bez wskazania poziomu myśli na
+ * `high`. Odczyt faktury to przepisywanie tego, co widać, a nie rozumowanie,
+ * więc oba pokrętła skręcamy w dół — dobrane pomiarem w `npm run ai:cost`.
+ */
+export type ExtractionSettings = {
+  model: string;
+  mediaResolution:
+    | "MEDIA_RESOLUTION_LOW"
+    | "MEDIA_RESOLUTION_MEDIUM"
+    | "MEDIA_RESOLUTION_HIGH";
+  thinkingLevel: "minimal" | "low" | "medium" | "high";
+};
+
+export const DEFAULT_EXTRACTION_SETTINGS: ExtractionSettings = {
+  model: EXTRACTION_MODEL,
+  mediaResolution: "MEDIA_RESOLUTION_MEDIUM",
+  thinkingLevel: "low",
+};
+
+/** Zużycie jednego odczytu. Myślenie siedzi już w `outputTokens`. */
+export type ExtractionUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  totalTokens: number;
+};
+
+export type ExtractionResult = {
+  data: ExtractedInvoice;
+  usage: ExtractionUsage;
+  /** Model, który faktycznie odczytał zdjęcie — przy zapasowym bywa inny niż domyślny. */
+  model: string;
+};
+
+/**
+ * Zero ponowień. Limit dobowy liczy zapytania, więc cicha powtórka zabiera
+ * odczyt, którego użytkownik nawet nie zobaczył — a robi to akurat wtedy, gdy
+ * model odpowiada wolno albo się dławi. Powtórka zostaje decyzją użytkownika:
+ * widzi błąd i sam wybiera, czy poświęcić na to kolejną próbę.
+ */
+const MAX_RETRIES = 0;
 
 const TIMEOUT_MS = 45_000;
 
@@ -123,7 +175,8 @@ export function isExtractionConfigured(): boolean {
 export async function extractInvoice(
   image: Uint8Array,
   mediaType: string,
-): Promise<ExtractedInvoice> {
+  settings: ExtractionSettings = DEFAULT_EXTRACTION_SETTINGS,
+): Promise<ExtractionResult> {
   if (!isExtractionConfigured()) {
     throw new InvoiceScanError(
       "Brak klucza do Gemini. Uzupełnij GOOGLE_GENERATIVE_AI_API_KEY i zrestartuj aplikację.",
@@ -132,11 +185,17 @@ export async function extractInvoice(
   }
 
   try {
-    const { output } = await generateText({
-      model: google(MODEL),
+    const { output, usage } = await generateText({
+      model: google(settings.model),
       instructions: INSTRUCTIONS,
       maxRetries: MAX_RETRIES,
       abortSignal: AbortSignal.timeout(TIMEOUT_MS),
+      providerOptions: {
+        google: {
+          mediaResolution: settings.mediaResolution,
+          thinkingConfig: { thinkingLevel: settings.thinkingLevel },
+        },
+      },
       output: Output.object({
         name: "Faktura",
         description: "Dane odczytane z polskiej faktury.",
@@ -156,9 +215,44 @@ export async function extractInvoice(
       ],
     });
 
-    return normalize(output);
+    return {
+      data: normalize(output),
+      usage: {
+        inputTokens: usage.inputTokens ?? 0,
+        outputTokens: usage.outputTokens ?? 0,
+        reasoningTokens: usage.outputTokenDetails.reasoningTokens ?? 0,
+        totalTokens: usage.totalTokens ?? 0,
+      },
+      model: settings.model,
+    };
   } catch (error) {
     throw asScanError(error);
+  }
+}
+
+/**
+ * Odczyt z sięgnięciem po zapasowy model, gdy pierwszy odmawia z powodu limitu.
+ * To jedyne miejsce, w którym aplikacja wysyła zdjęcie do modelu dwa razy —
+ * i robi to tylko wtedy, gdy pierwsze wysłanie nic nie kosztowało, bo zostało
+ * odrzucone przed odczytem.
+ */
+export async function extractInvoiceWithFallback(
+  image: Uint8Array,
+  mediaType: string,
+): Promise<ExtractionResult> {
+  try {
+    return await extractInvoice(image, mediaType);
+  } catch (error) {
+    if (!(error instanceof InvoiceScanError) || error.status !== 429) throw error;
+
+    console.warn(
+      `Limit modelu ${DEFAULT_EXTRACTION_SETTINGS.model} wyczerpany, próbuję ${FALLBACK_MODEL}`,
+    );
+
+    return extractInvoice(image, mediaType, {
+      ...DEFAULT_EXTRACTION_SETTINGS,
+      model: FALLBACK_MODEL,
+    });
   }
 }
 
@@ -189,7 +283,7 @@ function asScanError(error: unknown): InvoiceScanError {
   if (APICallError.isInstance(error)) {
     if (error.statusCode === 429) {
       return new InvoiceScanError(
-        "Wyczerpany limit odczytów Gemini. Poczekaj kilka minut i spróbuj ponownie.",
+        "Wyczerpał się dzienny limit darmowych odczytów AI. Wpisz dane z faktury ręcznie — jutro limit wraca.",
         429,
         { cause: error },
       );

@@ -41,6 +41,32 @@ i krzywe, a AI czasem pomyli cyfrę.
 - Zdjęcia: Vercel Blob (prywatny)
 - AI: Vercel AI SDK + `@ai-sdk/google` (Gemini), `generateObject` ze schematem Zod
 
+## Koszt odczytu AI
+
+Darmowy plan AI Studio rozlicza się **liczbą zapytań, nie tokenami**: 20 odczytów na dobę,
+liczonych osobno dla każdego modelu. Przy takim suficie każde niepotrzebne wywołanie boli
+bardziej niż jego cena, dlatego aplikacja:
+
+- nie ponawia zapytania po cichu (`maxRetries: 0`) — powtórka to świadoma decyzja użytkownika,
+- pamięta ostatnio odczytane zdjęcia po skrócie SHA-256 i przy powtórnej wysyłce tego samego
+  pliku oddaje poprzedni odczyt, nie pytając modelu,
+- po wyczerpaniu limitu głównego modelu sięga po zapasowy (osobna pula na dobę),
+- pokazuje w ustawieniach, ile odczytów zeszło dziś i ile tokenów w tym miesiącu.
+
+Ustawienia modelu dobrane pomiarem (`npm run ai:cost`) na pogniecionej, obróconej fakturze
+z blokiem ODBIORCA obok NABYWCY — czyli najtrudniejszym, jaki mamy:
+
+| model | zdjęcie | myślenie | tokeny | czas | poprawnych pól |
+| --- | --- | --- | --- | --- | --- |
+| flash | HIGH | high (domyślne Gemini) | 3700 | 9,5 s | 9/9 |
+| flash-lite | HIGH | low | 1790 | 2,0 s | 8/9 (wielkość liter w nazwie) |
+| flash-lite | MEDIUM | low | 1266 | 1,9 s | 8/9 (wielkość liter w nazwie) |
+| flash-lite | MEDIUM | minimal | 1266 | 1,9 s | 7/9 (NIP odbiorcy jako NIP nabywcy) |
+| flash-lite | LOW | minimal | 982 | 2,5 s | 8/9 (przekłamany NIP sprzedawcy) |
+
+Stąd `MEDIA_RESOLUTION_MEDIUM` i `thinkingLevel: "low"`. Niżej nie schodzimy: przy `LOW`
+model gubi cyfry w drobnym druku, a przy `minimal` przestaje odróżniać nabywcę od odbiorcy.
+
 ## Docelowa struktura plików
 
 Trasy aplikacji siedzą w grupie `(main)`, bo layout z dolną nawigacją i sprawdzeniem
@@ -65,8 +91,10 @@ proxy.ts                     blokada dostepu bez zalogowania
 lib/
   db/schema.ts               tabele Drizzle
   db/index.ts                klient bazy
-  db/queries.ts              zapytania: lista, pojedyncza, zapis, edycja, usuwanie, ustawienia
-  ai/extract-invoice.ts      prompt + schemat Zod + wywolanie Gemini
+  db/queries.ts              zapytania: lista, pojedyncza, zapis, edycja, usuwanie, ustawienia,
+                             licznik zuzycia AI
+  ai/extract-invoice.ts      prompt, schemat Zod, ustawienia kosztu, model zapasowy
+  ai/recent-scans.ts         pamiec ostatnich zdjec, zeby nie pytac dwa razy o to samo
   invoice-form.ts            typy i stan formularza wspolne dla klienta i serwera
   invoice-schema.ts          walidacja Zod danych z formularza
   invoice-actions.ts         server actions: zapis i usuwanie faktury
@@ -83,7 +111,8 @@ components/
   invoice-table.tsx          tabela na duzym ekranie, karty na telefonie
   invoice-filters.tsx        formularz filtrow (GET, bez JavaScriptu)
   bottom-nav.tsx             dolna nawigacja
-scripts/                     recznie uruchamiane sprawdzenia: db, odczyt AI, formularz
+scripts/                     recznie uruchamiane sprawdzenia: db, odczyt AI, formularz,
+                             porownanie kosztu ustawien Gemini (ai-cost.ts)
 ```
 
 ---

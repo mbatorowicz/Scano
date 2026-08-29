@@ -1,10 +1,10 @@
-import { and, desc, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 
 import { calculateFee, DEFAULT_FEE_RATE, isValidFeeRate } from "@/lib/fees";
 import { parseAmount } from "@/lib/money";
 
 import { getDb } from "./index";
-import { invoices, settings, type Invoice } from "./schema";
+import { aiUsage, invoices, settings, type Invoice } from "./schema";
 
 export type InvoiceInput = {
   invoiceNumber: string;
@@ -227,6 +227,72 @@ export async function getSettings(): Promise<{ feeRate: string }> {
     .returning();
 
   return { feeRate: created?.feeRate ?? DEFAULT_FEE_RATE };
+}
+
+export type AiUsageInput = {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+};
+
+/**
+ * Licznik zużycia nie może przewrócić odczytu — użytkownik ma już dane faktury
+ * na ekranie, a nieudany zapis statystyki to nie jego problem.
+ */
+export async function recordAiUsage(input: AiUsageInput): Promise<void> {
+  try {
+    await getDb().insert(aiUsage).values({
+      model: input.model,
+      inputTokens: Math.max(0, Math.round(input.inputTokens)),
+      outputTokens: Math.max(0, Math.round(input.outputTokens)),
+      totalTokens: Math.max(0, Math.round(input.totalTokens)),
+    });
+  } catch (cause) {
+    console.error("Nie udało się zapisać zużycia AI", cause);
+  }
+}
+
+export type AiUsageSummary = {
+  scans: number;
+  totalTokens: number;
+  /** Średnia na odczyt — po niej najszybciej widać skutek zmiany ustawień. */
+  averageTokens: number;
+};
+
+export async function getAiUsageSummary(since: Date): Promise<AiUsageSummary> {
+  const [row] = await getDb()
+    .select({
+      scans: count(),
+      totalTokens: sql<number>`coalesce(sum(${aiUsage.totalTokens}), 0)::int`,
+    })
+    .from(aiUsage)
+    .where(gte(aiUsage.createdAt, since));
+
+  const scans = row?.scans ?? 0;
+  const totalTokens = row?.totalTokens ?? 0;
+
+  return {
+    scans,
+    totalTokens,
+    averageTokens: scans === 0 ? 0 : Math.round(totalTokens / scans),
+  };
+}
+
+/**
+ * Zużycie w rozbiciu na modele. Dobowy limit darmowego planu jest liczony
+ * osobno dla każdego z nich, więc dopiero taki podział mówi, ile odczytów
+ * jeszcze zostało.
+ */
+export async function getAiUsageByModel(
+  since: Date,
+): Promise<Array<{ model: string; scans: number }>> {
+  return getDb()
+    .select({ model: aiUsage.model, scans: count() })
+    .from(aiUsage)
+    .where(gte(aiUsage.createdAt, since))
+    .groupBy(aiUsage.model)
+    .orderBy(aiUsage.model);
 }
 
 export async function updateSettings(feeRate: string): Promise<{ feeRate: string }> {

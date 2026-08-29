@@ -1,16 +1,22 @@
 import { del, put } from "@vercel/blob";
 
 import {
-  extractInvoice,
+  extractInvoiceWithFallback,
   InvoiceScanError,
   isExtractionConfigured,
 } from "@/lib/ai/extract-invoice";
+import {
+  recallScan,
+  rememberScan,
+  scanFingerprint,
+} from "@/lib/ai/recent-scans";
 import {
   invoiceBlobPathname,
   invoiceImageHref,
   isSupportedImageType,
   MAX_IMAGE_BYTES,
 } from "@/lib/blob";
+import { recordAiUsage } from "@/lib/db/queries";
 import { hasValidSession } from "@/lib/session";
 
 /** Gemini potrzebuje kilku sekund na zdjęcie faktury, czasem kilkunastu. */
@@ -62,6 +68,8 @@ export async function POST(request: Request) {
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
+  const fingerprint = scanFingerprint(bytes);
+  const remembered = recallScan(fingerprint);
 
   let pathname: string;
   try {
@@ -76,12 +84,26 @@ export async function POST(request: Request) {
     return error("Nie udało się zapisać zdjęcia. Spróbuj ponownie.", 502);
   }
 
-  try {
-    const data = await extractInvoice(bytes, file.type);
+  // To samo zdjęcie drugi raz oddajemy z pamięci: odczyt jest ten sam, a
+  // dobowy limit zostaje na kolejną fakturę.
+  if (remembered !== null) {
     return Response.json({
       imagePathname: pathname,
       imageHref: invoiceImageHref(pathname),
-      data,
+      data: remembered.data,
+    });
+  }
+
+  try {
+    const result = await extractInvoiceWithFallback(bytes, file.type);
+
+    rememberScan(fingerprint, result);
+    await recordAiUsage({ model: result.model, ...result.usage });
+
+    return Response.json({
+      imagePathname: pathname,
+      imageHref: invoiceImageHref(pathname),
+      data: result.data,
     });
   } catch (cause) {
     // Zdjęcie bez odczytanych danych nie ma po co zostawać w magazynie —

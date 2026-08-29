@@ -13,7 +13,8 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:check": "tsx scripts/db-check.ts",
     "form:check": "tsx scripts/form-check.ts",
-    "scan:check": "tsx scripts/scan-check.ts"
+    "scan:check": "tsx scripts/scan-check.ts",
+    "ai:cost": "tsx scripts/ai-cost.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.57",

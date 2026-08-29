@@ -74,6 +74,29 @@ export const settings = pgTable(
   (table) => [check("settings_single_row", sql`${table.id} = 1`)],
 );
 
+/**
+ * Zużycie modelu przy odczycie faktury. Bez tego licznika nie da się
+ * powiedzieć, czy zmiana ustawień Gemini rzeczywiście coś oszczędziła — a przy
+ * darmowym limicie z AI Studio to różnica między „działa" a „wróć za minutę".
+ * Wiersz zapisujemy też dla nieudanego odczytu, bo tokeny za niego i tak lecą.
+ */
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    id: serial("id").primaryKey(),
+    model: text("model").notNull(),
+    inputTokens: integer("input_tokens").notNull(),
+    /** Razem z „myśleniem" modelu — Gemini liczy je jak tokeny wyjścia. */
+    outputTokens: integer("output_tokens").notNull(),
+    totalTokens: integer("total_tokens").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("ai_usage_created_at_idx").on(table.createdAt)],
+);
+
 export type Invoice = typeof invoices.$inferSelect;
 export type NewInvoice = typeof invoices.$inferInsert;
 export type Settings = typeof settings.$inferSelect;
+export type AiUsage = typeof aiUsage.$inferSelect;
