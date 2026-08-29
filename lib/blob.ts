@@ -13,3 +13,32 @@ export function invoiceImageHref(pathname: string): string {
   const encoded = pathname.split("/").map(encodeURIComponent).join("/");
   return `/api/image/${encoded}`;
 }
+
+/** Formaty, które przyjmuje zarówno aparat w telefonie, jak i Gemini. */
+const EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/heic": "heic",
+  "image/heif": "heif",
+};
+
+export function isSupportedImageType(mediaType: string): boolean {
+  return mediaType in EXTENSIONS;
+}
+
+export const SUPPORTED_IMAGE_TYPES = Object.keys(EXTENSIONS);
+
+/** Zdjęcie z telefonu po kompresji ma zwykle poniżej 1 MB; 10 MB to zapas na oryginały. */
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Ścieżka w magazynie: rok i miesiąc pomagają się połapać w plikach,
+ * a losowy sufiks dokłada `put`, więc dwa zdjęcia w tej samej sekundzie
+ * się nie nadpiszą.
+ */
+export function invoiceBlobPathname(mediaType: string, now = new Date()): string {
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  return `${INVOICE_BLOB_PREFIX}${year}-${month}/faktura.${EXTENSIONS[mediaType] ?? "jpg"}`;
+}

@@ -8,7 +8,7 @@ jako procent od wartości brutto.
 
 - [x] **Etap 1** — Fundament: Next.js + Tailwind + shadcn/ui, layout PWA, Vercel, Neon, Blob, logowanie hasłem
 - [x] **Etap 2** — Baza: schemat Drizzle, migracje, warstwa zapytań, wyliczanie prowizji
-- [ ] **Etap 3** — Odczyt AI: Gemini + schemat Zod, endpoint `/api/scan`, upload zdjęcia
+- [x] **Etap 3** — Odczyt AI: Gemini + schemat Zod, endpoint `/api/scan`, upload zdjęcia
 - [ ] **Etap 4** — Ekran skanowania: aparat, kompresja, formularz korekty, zapis
 - [ ] **Etap 5** — Lista faktur, szczegóły, ustawienia, eksport CSV
 - [ ] **Etap 6** — Wdrożenie na Vercel i test na telefonie
