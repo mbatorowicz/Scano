@@ -42,14 +42,33 @@ const extractionSchema = z.object({
     .string()
     .nullable()
     .describe(
-      'Sama nazwa sprzedawcy, bez adresu i NIP-u, np. \'P.H.U. "Pecet" Mariusz Szczęsny\'.',
+      'Sama nazwa sprzedawcy, bez adresu i NIP-u, np. \'F.H.U. "Pecet" Mariusz Szczęsny\'.',
     ),
   sellerNip: z.string().nullable().describe("NIP sprzedawcy, same cyfry."),
   buyerName: z
     .string()
     .nullable()
-    .describe('Sama nazwa nabywcy, bez adresu i NIP-u, np. "Gmina Miedzna".'),
-  buyerNip: z.string().nullable().describe("NIP nabywcy, same cyfry."),
+    .describe(
+      'Sama nazwa nabywcy z bloku NABYWCA, bez adresu i NIP-u, np. "Gmina Miedzna". Nie nazwa z bloku ODBIORCA.',
+    ),
+  buyerNip: z
+    .string()
+    .nullable()
+    .describe("NIP nabywcy z bloku NABYWCA, same cyfry. Nie NIP odbiorcy."),
+  /**
+   * Odbiorcy nie zapisujemy, ale musi mieć w odpowiedzi własne miejsce.
+   * Bez tych dwóch pól model wpisywał NIP odbiorcy do `buyerNip` — dane, które
+   * widzi na fakturze, muszą gdzieś trafić, więc lądowały w najbliższym
+   * pasującym polu.
+   */
+  recipientName: z
+    .string()
+    .nullable()
+    .describe("Nazwa z bloku ODBIORCA, jeśli faktura go wymienia."),
+  recipientNip: z
+    .string()
+    .nullable()
+    .describe("NIP z bloku ODBIORCA, same cyfry, jeśli faktura go wymienia."),
   grossAmount: z
     .string()
     .nullable()
@@ -63,7 +82,9 @@ const INSTRUCTIONS = `Odczytujesz dane z polskiej faktury ze zdjęcia. Zwracasz 
 Zasady:
 - Przecinek jest separatorem dziesiętnym. "750,00" to siedemset pięćdziesiąt złotych, a nie siedemdziesiąt pięć tysięcy. Kropka albo spacja rozdzielają tysiące: "1.234,56" i "1 234,56" to tysiąc dwieście trzydzieści cztery złote i pięćdziesiąt sześć groszy.
 - Kwoty przepisujesz bez symbolu waluty, bez "zł" i bez "PLN".
-- Sprzedawca to strona, która wystawiła fakturę. Nabywca to odbiorca. Nie zamieniaj ich miejscami, nawet gdy nabywca jest wydrukowany wyżej.
+- Sprzedawca to strona, która wystawiła fakturę. Nabywca to strona, która za nią płaci. Nie zamieniaj ich miejscami, nawet gdy nabywca jest wydrukowany wyżej.
+- Faktura może wymieniać trzy strony: SPRZEDAWCA, NABYWCA i ODBIORCA. Każda ma w odpowiedzi własne pola. Danych odbiorcy nie wpisujesz do pól nabywcy, nawet gdy odbiorca ma osobną nazwę i własny NIP.
+- NIP bierzesz z tego samego bloku, z którego wziąłeś nazwę. Gdy w bloku nabywcy jest "NIP/PESEL", to właśnie jest NIP nabywcy, a "NIP" pod nazwą odbiorcy należy do odbiorcy.
 - W nazwie sprzedawcy i nabywcy podajesz wyłącznie nazwę firmy albo instytucji. Ulicę, kod pocztowy, miasto i NIP pomijasz.
 - Wartość brutto to kwota "razem do zapłaty" albo "brutto" — nie suma pozycji przed rabatem.
 - Datę wystawienia zwracasz w formacie RRRR-MM-DD. Gdy na fakturze są dwie daty (wystawienia i sprzedaży), bierzesz datę wystawienia.

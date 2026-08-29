@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# zdjecia faktur do testow odczytu — prawdziwe dane kontrahentow, nie do repozytorium
+/samples
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

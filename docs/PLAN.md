@@ -136,10 +136,21 @@ odczytuje ją i usuwa bez błędów; kwoty wracają z bazy identyczne co do gros
 
 # Etap 3 — Odczyt faktury przez Gemini
 
-**Kontekst startowy:** działa baza z Etapu 2. Do testów służy prawdziwe zdjęcie pogniecionej
-faktury nr `0350/2026`: sprzedawca P.H.U. "Pecet" Mariusz Szczęsny (NIP 824-116-74-09),
-nabywca Gmina Miedzna (NIP 8241723514), brutto 750,00, netto 609,76, VAT 140,24,
-data wystawienia 12.08.2026.
+**Kontekst startowy:** działa baza z Etapu 2. Do testów służą trzy prawdziwe zdjęcia faktur
+(katalog `samples/`, poza repozytorium — zawierają dane kontrahentów). Wszystkie od sprzedawcy
+F.H.U. "Pecet" Mariusz Szczęsny (NIP 824-116-74-09), nabywca Gmina Miedzna (NIP 8241723514),
+każda na jednej stronie:
+
+| plik | numer | data | brutto | netto | VAT | zdjęcie |
+| --- | --- | --- | --- | --- | --- | --- |
+| `faktura-0326.png` | 0326/2026 | 2026-07-22 | 1107,00 | 900,00 | 207,00 | prosto |
+| `faktura-0223.png` | 0223/2026 | 2026-05-22 | 735,00 | 597,56 | 137,44 | obrócone o 90° |
+| `faktura-0350.png` | 0350/2026 | 2026-08-12 | 750,00 | 609,76 | 140,24 | obrócone o 180°, pogniecione |
+
+Każda z nich wymienia trzy strony: sprzedawcę, nabywcę (Gmina Miedzna) i odbiorcę (Urząd Gminy
+w Miedznie NIP 8241261373 albo Szkoła Podstawowa w Miedznie NIP 8241607506). Prowizję liczymy
+od nabywcy, więc odbiorcy nie zapisujemy — ale schemat ekstrakcji musi mieć na niego pola,
+inaczej model wstawia NIP odbiorcy do NIP-u nabywcy.
 
 **Do zrobienia:**
 
@@ -154,9 +165,9 @@ data wystawienia 12.08.2026.
 - obsługa błędów: przekroczony limit API, nieczytelne zdjęcie, brak klucza — zrozumiałe
   komunikaty po polsku, nie surowy stack trace
 
-**Kryterium ukończenia:** wysłanie przykładowego zdjęcia na `/api/scan` zwraca poprawnie
-odczytane: numer `0350/2026`, datę `2026-08-12`, obu kontrahentów z NIP-ami oraz kwoty
-750,00 / 609,76 / 140,24.
+**Kryterium ukończenia:** wysłanie każdego z trzech zdjęć na `/api/scan` (`npm run scan:check --
+".\samples\faktura-0350.png"`) zwraca numer, datę, obu kontrahentów z NIP-ami i kwoty zgodne
+z tabelą powyżej — również ze zdjęć obróconych i pogniecionych.
 
 ---
 
@@ -211,10 +222,18 @@ edytować i usunąć, a wyeksportowany CSV otwiera się w Excelu z poprawnymi po
 
 **Kontekst startowy:** aplikacja działa lokalnie w komplecie.
 
+**Bez środowiska preview.** Jest jedno środowisko: produkcja pod
+https://scano-beta.vercel.app. Wdrażamy przez `npm run deploy` (czyli `vercel deploy --prod`),
+nie przez push do GitHuba — projekt na Vercelu nie jest podłączony do repozytorium. Dlatego
+`APP_PASSWORD`, `AUTH_SECRET` i `GOOGLE_GENERATIVE_AI_API_KEY` są ustawione tylko dla
+Production i Development; deploymenty preview i tak by nie wstały i nie są nam potrzebne.
+Baza Neon i Blob są wspólne dla lokalnego dev i produkcji, więc skan zrobiony lokalnie ląduje
+w tych samych danych co skan z telefonu.
+
 **Do zrobienia:**
 
 - sprawdzenie, że wszystkie zmienne środowiskowe są ustawione na Vercelu dla produkcji
-- `npm run build` lokalnie, naprawa błędów typów i lintera, potem deploy na produkcję
+- `npm run build` lokalnie, naprawa błędów typów i lintera, potem `npm run deploy`
 - test na prawdziwym telefonie: zrobienie zdjęcia faktury, odczyt, zapis, obejrzenie listy
 - instalacja PWA na ekranie głównym i sprawdzenie, że po otwarciu z ikony aparat nadal działa
 - krótki `README.md`: jak uruchomić lokalnie, jakie zmienne są potrzebne, skąd wziąć klucz Gemini
