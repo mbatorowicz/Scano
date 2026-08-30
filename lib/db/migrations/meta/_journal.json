@@ -29,6 +29,13 @@
       "when": 1788115260000,
       "tag": "0003_rozliczenia",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788115320000,
+      "tag": "0004_kontrahenci",
+      "breakpoints": true
     }
   ]
 }

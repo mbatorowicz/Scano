@@ -7,6 +7,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -16,6 +17,34 @@ import {
  */
 const amount = (name: string) => numeric(name, { precision: 12, scale: 2 });
 
+/**
+ * Sprzedawcy i nabywcy w jednej tabeli, bo to ta sama rzecz — firma. Ta sama
+ * firma raz sprzedaje, raz kupuje, a dwie osobne tabele znaczyłyby dwa wpisy
+ * tej samej nazwy i dwa miejsca do poprawiania literówki po odczycie AI.
+ */
+export const contractors = pgTable(
+  "contractors",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    /** Same cyfry albo nic; NIP należy do firmy, nie do pojedynczej faktury. */
+    nip: text("nip"),
+    /**
+     * Tożsamość firmy: `nip:<cyfry>`, a bez NIP-u `name:<nazwa bez ozdób>`.
+     * Klucz liczy `lib/contractors/match-key.ts` — baza pilnuje tylko, żeby
+     * dwie firmy nie stanęły pod tym samym.
+     */
+    matchKey: text("match_key").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("contractors_match_key_idx").on(table.matchKey),
+    index("contractors_name_idx").on(table.name),
+  ],
+);
+
 export const invoices = pgTable(
   "invoices",
   {
@@ -23,11 +52,16 @@ export const invoices = pgTable(
     invoiceNumber: text("invoice_number").notNull(),
     issueDate: date("issue_date").notNull(),
 
-    sellerName: text("seller_name").notNull(),
-    sellerNip: text("seller_nip"),
-
-    buyerName: text("buyer_name").notNull(),
-    buyerNip: text("buyer_nip"),
+    /**
+     * Strony faktury trzymamy wskazaniem, a nie nazwą, żeby poprawka nazwy
+     * kontrahenta była widoczna od razu na wszystkich jego fakturach.
+     */
+    sellerId: integer("seller_id")
+      .notNull()
+      .references(() => contractors.id, { onDelete: "restrict" }),
+    buyerId: integer("buyer_id")
+      .notNull()
+      .references(() => contractors.id, { onDelete: "restrict" }),
 
     grossAmount: amount("gross_amount").notNull(),
     netAmount: amount("net_amount"),
@@ -53,7 +87,7 @@ export const invoices = pgTable(
   (table) => [
     index("invoices_issue_date_idx").on(table.issueDate),
     // Wyszukiwanie duplikatu przy zapisie nowego skanu.
-    index("invoices_number_seller_idx").on(table.invoiceNumber, table.sellerName),
+    index("invoices_number_seller_idx").on(table.invoiceNumber, table.sellerId),
   ],
 );
 
@@ -100,6 +134,8 @@ export const aiUsage = pgTable(
   (table) => [index("ai_usage_created_at_idx").on(table.createdAt)],
 );
 
+export type Contractor = typeof contractors.$inferSelect;
+export type NewContractor = typeof contractors.$inferInsert;
 export type Invoice = typeof invoices.$inferSelect;
 export type NewInvoice = typeof invoices.$inferInsert;
 export type Settlement = typeof settlements.$inferSelect;
