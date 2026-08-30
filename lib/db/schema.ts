@@ -1,6 +1,4 @@
-import { sql } from "drizzle-orm";
 import {
-  check,
   date,
   index,
   integer,
@@ -35,12 +33,15 @@ export const invoices = pgTable(
     netAmount: amount("net_amount"),
     vatAmount: amount("vat_amount"),
 
+    /** Cena, jaką sam zapłaciłem za towar — wpisywana ręcznie, nie ma jej na fakturze. */
+    costAmount: amount("cost_amount").notNull().default("0.00"),
+
     /**
-     * Stawkę prowizji zapisujemy razem z fakturą, żeby późniejsza zmiana
-     * w ustawieniach nie przeliczała wstecz całej historii.
+     * Marża po VAT i podatku dochodowym, wyliczona przy zapisie. Trzymamy ją
+     * w kolumnie, żeby sumy na liście i w eksporcie liczyła baza, a nie każdy
+     * ekran po swojemu.
      */
-    feeRate: numeric("fee_rate", { precision: 5, scale: 2 }).notNull(),
-    feeAmount: amount("fee_amount").notNull(),
+    payoutAmount: amount("payout_amount").notNull(),
 
     /** Ścieżka pliku w Vercel Blob, nie publiczny adres — zdjęcia serwuje `/api/image`. */
     imagePathname: text("image_pathname"),
@@ -54,24 +55,6 @@ export const invoices = pgTable(
     // Wyszukiwanie duplikatu przy zapisie nowego skanu.
     index("invoices_number_seller_idx").on(table.invoiceNumber, table.sellerName),
   ],
-);
-
-/**
- * Tabela ma zawsze dokładnie jeden wiersz — `check` na `id` pilnuje, żeby nie
- * dorobiły się kolejne i żeby nie trzeba było zgadywać, który jest aktualny.
- */
-export const settings = pgTable(
-  "settings",
-  {
-    id: integer("id").primaryKey().default(1),
-    feeRate: numeric("fee_rate", { precision: 5, scale: 2 })
-      .notNull()
-      .default("5.00"),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [check("settings_single_row", sql`${table.id} = 1`)],
 );
 
 /**
@@ -98,5 +81,4 @@ export const aiUsage = pgTable(
 
 export type Invoice = typeof invoices.$inferSelect;
 export type NewInvoice = typeof invoices.$inferInsert;
-export type Settings = typeof settings.$inferSelect;
 export type AiUsage = typeof aiUsage.$inferSelect;

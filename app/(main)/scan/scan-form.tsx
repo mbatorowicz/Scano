@@ -39,7 +39,7 @@ type Draft = {
   imageSrc: string | null;
 };
 
-export function ScanForm({ feeRate }: { feeRate: string }) {
+export function ScanForm() {
   const router = useRouter();
   const cameraInput = useRef<HTMLInputElement>(null);
   const galleryInput = useRef<HTMLInputElement>(null);
@@ -187,7 +187,6 @@ export function ScanForm({ feeRate }: { feeRate: string }) {
         <InvoiceForm
           action={saveInvoice}
           initialValues={draft.values}
-          feeRate={feeRate}
           imagePathname={draft.imagePathname}
           imageSrc={draft.imageSrc}
           missingFields={draft.missingFields}

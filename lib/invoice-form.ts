@@ -15,6 +15,8 @@ export type InvoiceFormValues = {
   grossAmount: string;
   netAmount: string;
   vatAmount: string;
+  /** Wpisywana ręcznie — na fakturze jej nie ma, więc AI jej nie odczytuje. */
+  costAmount: string;
 };
 
 export type InvoiceFieldName = keyof InvoiceFormValues;
@@ -29,6 +31,7 @@ export const INVOICE_FIELD_NAMES: readonly InvoiceFieldName[] = [
   "grossAmount",
   "netAmount",
   "vatAmount",
+  "costAmount",
 ];
 
 export const EMPTY_INVOICE_FORM_VALUES: InvoiceFormValues = {
@@ -41,6 +44,7 @@ export const EMPTY_INVOICE_FORM_VALUES: InvoiceFormValues = {
   grossAmount: "",
   netAmount: "",
   vatAmount: "",
+  costAmount: "",
 };
 
 /** Pola wymagane do zapisu — reszta może zostać pusta. */
@@ -98,10 +102,13 @@ export function toInvoiceFormValues(
 /**
  * Pola, których AI nie odczytała. Formularz oznacza je jako wymagające uwagi —
  * puste pole łatwo przeoczyć przy zatwierdzaniu, a wtedy faktura wpada do bazy
- * bez nabywcy albo bez daty.
+ * bez nabywcy albo bez daty. „Cena dla mnie" jest tu wyjątkiem: nie stoi na
+ * fakturze, więc jej pustka nie jest niczyim przeoczeniem.
  */
 export function emptyInvoiceFields(
   values: InvoiceFormValues,
 ): InvoiceFieldName[] {
-  return INVOICE_FIELD_NAMES.filter((name) => values[name].length === 0);
+  return INVOICE_FIELD_NAMES.filter(
+    (name) => name !== "costAmount" && values[name].length === 0,
+  );
 }

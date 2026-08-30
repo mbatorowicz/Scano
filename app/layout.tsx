@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     template: "%s · Scano",
   },
   description:
-    "Zrób zdjęcie faktury telefonem. Dane odczytuje AI, prowizja liczy się sama.",
+    "Zrób zdjęcie faktury telefonem. Dane odczytuje AI, należność liczy się sama.",
   applicationName: "Scano",
   manifest: "/manifest.webmanifest",
   icons: {

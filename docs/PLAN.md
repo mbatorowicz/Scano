@@ -1,13 +1,14 @@
 # Scano — skaner faktur z odczytem AI
 
 Aplikacja PWA, w której robisz telefonem zdjęcie faktury. Gemini odczytuje z niego datę,
-sprzedawcę, nabywcę i wartość, aplikacja zapisuje dane w bazie Postgres i wylicza prowizję
-jako procent od wartości brutto.
+sprzedawcę, nabywcę i wartość, ty dopisujesz cenę, jaką sam zapłaciłeś za towar, a aplikacja
+zapisuje dane w bazie Postgres i wylicza należność dla ciebie: `(brutto − cena dla mnie) / 1,23 / 1,19`,
+czyli marżę po VAT 23% i podatku dochodowym 19%.
 
 ## Lista kroków
 
 - [x] **Etap 1** — Fundament: Next.js + Tailwind + shadcn/ui, layout PWA, Vercel, Neon, Blob, logowanie hasłem
-- [x] **Etap 2** — Baza: schemat Drizzle, migracje, warstwa zapytań, wyliczanie prowizji
+- [x] **Etap 2** — Baza: schemat Drizzle, migracje, warstwa zapytań, wyliczanie należności
 - [x] **Etap 3** — Odczyt AI: Gemini + schemat Zod, endpoint `/api/scan`, upload zdjęcia
 - [x] **Etap 4** — Ekran skanowania: aparat, kompresja, formularz korekty, zapis
 - [x] **Etap 5** — Lista faktur, szczegóły, ustawienia, eksport CSV
@@ -25,7 +26,7 @@ flowchart LR
   Upload --> Gemini["Gemini vision + Zod schema"]
   Gemini --> Podglad["Formularz podgladu i korekty"]
   Podglad --> DB["Neon Postgres"]
-  DB --> Lista["Lista faktur + suma prowizji"]
+  DB --> Lista["Lista faktur + suma naleznosci"]
 ```
 
 Zdjęcie nie trafia do bazy od razu. AI odczytuje dane, użytkownik widzi je w formularzu,
@@ -80,10 +81,10 @@ app/
   login/page.tsx             ekran logowania haslem
   (main)/layout.tsx          dolna nawigacja, sprawdzenie sesji
   (main)/page.tsx            lista faktur
-  (main)/scan/page.tsx       ekran skanowania (stawka prowizji z ustawien)
+  (main)/scan/page.tsx       ekran skanowania
   (main)/scan/scan-form.tsx  aparat, kompresja, wywolanie /api/scan
   (main)/invoice/[id]/       szczegoly faktury: zdjecie, edycja, usuwanie
-  (main)/settings/page.tsx   stawka prowizji, wylogowanie
+  (main)/settings/page.tsx   zuzycie AI, wylogowanie
   api/scan/route.ts          upload zdjecia + odczyt przez Gemini
   api/image/[...path]/       serwowanie prywatnych zdjec z Blob
   api/export/route.ts        eksport CSV przefiltrowanej listy
@@ -91,7 +92,7 @@ proxy.ts                     blokada dostepu bez zalogowania
 lib/
   db/schema.ts               tabele Drizzle
   db/index.ts                klient bazy
-  db/queries.ts              zapytania: lista, pojedyncza, zapis, edycja, usuwanie, ustawienia,
+  db/queries.ts              zapytania: lista, pojedyncza, zapis, edycja, usuwanie,
                              licznik zuzycia AI
   ai/extract-invoice.ts      prompt, schemat Zod, ustawienia kosztu, model zapasowy
   ai/recent-scans.ts         pamiec ostatnich zdjec, zeby nie pytac dwa razy o to samo
@@ -99,10 +100,9 @@ lib/
   invoice-schema.ts          walidacja Zod danych z formularza
   invoice-actions.ts         server actions: zapis i usuwanie faktury
   invoice-filters.ts         filtry listy czytane z adresu URL
-  settings-form.ts           stan formularza ustawien
   image.ts                   kompresja zdjecia w przegladarce
   blob.ts                    sciezki i limity zdjec
-  fees.ts                    wyliczanie prowizji
+  payout.ts                  wyliczanie naleznosci po VAT i podatku
   money.ts                   parsowanie i formatowanie kwot w formacie polskim
   dates.ts                   daty ISO
   auth.ts, session.ts        haslo i ciasteczko sesji
@@ -166,17 +166,18 @@ i `AUTH_SECRET`.
   - `buyerName`, `buyerNip` — dla kogo
   - `grossAmount`, `netAmount`, `vatAmount` jako `numeric(12,2)` — nigdy `float`,
     bo liczby zmiennoprzecinkowe gubią grosze
-  - `feeRate`, `feeAmount` — stawka prowizji użyta w momencie zapisu i wyliczona kwota;
-    stawkę zapisujemy razem z fakturą, żeby późniejsza zmiana w ustawieniach nie przeliczała
-    wstecz historii
+  - `costAmount` — cena, jaką sam zapłaciłem za towar; wpisywana ręcznie, bo na fakturze
+    jej nie ma. Puste pole znaczy 0,00
+  - `payoutAmount` — należność dla mnie wyliczona przy zapisie; trzymamy ją w kolumnie,
+    żeby sumy na liście i w eksporcie liczyła baza, a nie każdy ekran po swojemu
   - `imageUrl`, `createdAt`
-- tabela `settings` z jednym wierszem: domyślna stawka prowizji w procentach
-- migracja `drizzle-kit generate` + `migrate` na Neona, seed wstawiający wiersz ustawień
+- migracja `drizzle-kit generate` + `migrate` na Neona
 - `lib/money.ts` — parsowanie polskich kwot (`"750,00"`, spacje jako separator tysięcy)
   na string dziesiętny i formatowanie z powrotem
-- `lib/fees.ts` — wyliczenie prowizji na kwotach dziesiętnych, zaokrąglenie do grosza
+- `lib/payout.ts` — `(brutto − cena dla mnie) / 1,23 / 1,19` na groszach w `bigint`,
+  jedno zaokrąglenie do grosza (połówki w górę), tak samo jak liczył to arkusz
 - `lib/db/queries.ts` — `listInvoices` (filtr po zakresie dat i szukanie po nazwie), `getInvoice`,
-  `createInvoice`, `updateInvoice`, `deleteInvoice`, `getSettings`, `updateSettings`
+  `createInvoice`, `updateInvoice`, `deleteInvoice`
 
 **Kryterium ukończenia:** tabele istnieją na Neonie, krótki skrypt zapisuje testową fakturę,
 odczytuje ją i usuwa bez błędów; kwoty wracają z bazy identyczne co do grosza.
@@ -197,8 +198,8 @@ każda na jednej stronie:
 | `faktura-0350.png` | 0350/2026 | 2026-08-12 | 750,00 | 609,76 | 140,24 | obrócone o 180°, pogniecione |
 
 Każda z nich wymienia trzy strony: sprzedawcę, nabywcę (Gmina Miedzna) i odbiorcę (Urząd Gminy
-w Miedznie NIP 8241261373 albo Szkoła Podstawowa w Miedznie NIP 8241607506). Prowizję liczymy
-od nabywcy, więc odbiorcy nie zapisujemy — ale schemat ekstrakcji musi mieć na niego pola,
+w Miedznie NIP 8241261373 albo Szkoła Podstawowa w Miedznie NIP 8241607506). Fakturę wiążemy
+z nabywcą, więc odbiorcy nie zapisujemy — ale schemat ekstrakcji musi mieć na niego pola,
 inaczej model wstawia NIP odbiorcy do NIP-u nabywcy.
 
 **Do zrobienia:**
@@ -233,7 +234,7 @@ z tabelą powyżej — również ze zdjęć obróconych i pogniecionych.
 - stan ładowania z informacją „Odczytuję fakturę…", bo Gemini potrzebuje kilku sekund
 - `components/invoice-form.tsx` — formularz z odczytanymi danymi do korekty, obok miniatura
   zdjęcia do porównania; pola nieodczytane wyraźnie oznaczone jako wymagające uzupełnienia
-- prowizja liczona na żywo z aktualnej stawki i wyświetlana pod kwotą brutto
+- pole „cena dla mnie" wpisywane ręcznie, a pod nim liczona na żywo należność dla mnie
 - zapis przez server action, walidacja Zod po stronie serwera, ostrzeżenie gdy faktura
   o tym numerze i sprzedawcy już istnieje
 - po zapisie przekierowanie na listę i potwierdzenie w toaście
@@ -244,23 +245,24 @@ ręcznie nawet gdy AI zwróci same puste pola.
 
 ---
 
-# Etap 5 — Lista faktur, szczegóły, ustawienia i eksport
+# Etap 5 — Lista faktur, szczegóły i eksport
 
 **Kontekst startowy:** faktury da się już zapisywać (Etap 4), w bazie jest kilka rekordów testowych.
 
 **Do zrobienia:**
 
-- `app/(main)/page.tsx` — tabela: lp., data, sprzedawca, nabywca, wartość brutto, prowizja.
-  Lp. liczone przy wyświetlaniu, a nie brane z `id`, żeby usunięcie faktury nie robiło dziur
-- podsumowanie: liczba faktur, suma wartości brutto, suma prowizji dla aktualnych filtrów
+- `app/(main)/page.tsx` — tabela: lp., data, sprzedawca, nabywca, brutto, cena dla mnie,
+  należność. Lp. liczone przy wyświetlaniu, a nie brane z `id`, żeby usunięcie faktury nie
+  robiło dziur
+- podsumowanie dla aktualnych filtrów: liczba faktur, suma zakupów, suma sprzedaży i suma
+  należności — dokładnie te trzy sumy, które wcześniej stały w arkuszu
 - filtr po zakresie dat i wyszukiwarka po nazwie kontrahenta lub numerze faktury,
   stan filtrów trzymany w parametrach URL
-- na telefonie zamiast tabeli lista kart — sześć kolumn nie zmieści się na ekranie 390 px
+- na telefonie zamiast tabeli lista kart — tyle kolumn nie zmieści się na ekranie 390 px
 - `app/(main)/invoice/[id]/page.tsx` — podgląd zdjęcia w pełnym rozmiarze, edycja przez ten sam
-  `invoice-form` (prowizja liczona stawką zapisaną z fakturą), usuwanie z potwierdzeniem —
+  `invoice-form` (należność przeliczana od nowa przy każdym zapisie), usuwanie z potwierdzeniem —
   razem z wierszem znika też zdjęcie z Bloba
-- `app/(main)/settings/page.tsx` — stawka prowizji w procentach, z wyraźną informacją, że zmiana
-  dotyczy tylko nowych faktur
+- `app/(main)/settings/page.tsx` — zużycie AI i wylogowanie
 - `app/api/export/route.ts` — CSV z aktualnie przefiltrowanej listy, średnik jako separator
   i BOM UTF-8, żeby polski Excel otworzył plik poprawnie
 

@@ -8,16 +8,10 @@ import {
   deleteInvoice,
   findDuplicateInvoice,
   getInvoice,
-  getSettings,
   listInvoices,
 } from "@/lib/db/queries";
-import { calculateFee } from "@/lib/fees";
-import {
-  formatCurrency,
-  formatRate,
-  parseAmount,
-  sumAmounts,
-} from "@/lib/money";
+import { formatCurrency, parseAmount, sumAmounts } from "@/lib/money";
+import { calculatePayout } from "@/lib/payout";
 
 import { loadLocalEnv } from "./env";
 
@@ -42,8 +36,18 @@ function checkAmountParsing() {
   check("tekst nie jest kwotą", parseAmount("brak danych"), null);
   check("pusty tekst", parseAmount(""), null);
   check("suma nie gubi groszy", sumAmounts(["0.01", "0.02", "750.00"]), "750.03");
-  check("prowizja 2,5% z 1234,56", calculateFee("1234.56", "2.50"), "30.86");
-  check("prowizja 0% ", calculateFee("750.00", "0"), "0.00");
+  console.log();
+}
+
+/** Kwoty z arkusza, który aplikacja ma zastąpić — muszą wyjść co do grosza. */
+function checkPayout() {
+  check("750,00 przy cenie 700,00", calculatePayout("750.00", "700.00"), "34.16");
+  check("1107,00 bez własnego kosztu", calculatePayout("1107.00", "0.00"), "756.30");
+  check("735,00 przy cenie 635,00", calculatePayout("735.00", "635.00"), "68.32");
+  check("330,00 przy cenie 290,00", calculatePayout("330.00", "290.00"), "27.33");
+  check("1640,00 przy cenie 1550,00", calculatePayout("1640.00", "1550.00"), "61.49");
+  check("puste pole liczy się jak zero", calculatePayout("1107.00", ""), "756.30");
+  check("cena wyższa niż brutto to strata", calculatePayout("700.00", "750.00"), "-34.16");
   console.log();
 }
 
@@ -51,9 +55,7 @@ async function main() {
   loadLocalEnv();
 
   checkAmountParsing();
-
-  const { feeRate } = await getSettings();
-  console.log(`Stawka prowizji z ustawień: ${formatRate(feeRate)}\n`);
+  checkPayout();
 
   // Kwoty z prawdziwej faktury 0350/2026, na której będzie testowany odczyt AI.
   const created = await createInvoice({
@@ -66,7 +68,7 @@ async function main() {
     grossAmount: "750,00",
     netAmount: "609,76",
     vatAmount: "140,24",
-    feeRate: "5",
+    costAmount: "700,00",
   });
 
   const read = await getInvoice(created.id);
@@ -78,9 +80,8 @@ async function main() {
   check("brutto wraca z bazy", read.grossAmount, "750.00");
   check("netto wraca z bazy", read.netAmount, "609.76");
   check("VAT wraca z bazy", read.vatAmount, "140.24");
-  check("stawka zapisana z fakturą", read.feeRate, "5.00");
-  check("prowizja wyliczona", read.feeAmount, calculateFee("750.00", "5.00"));
-  check("prowizja z 750,00 przy 5%", read.feeAmount, "37.50");
+  check("cena dla mnie zapisana z fakturą", read.costAmount, "700.00");
+  check("należność wyliczona przy zapisie", read.payoutAmount, "34.16");
   check("data wystawienia", read.issueDate, "2026-08-12");
   check("NIP bez kresek", read.sellerNip, "8241167409");
 
@@ -97,7 +98,7 @@ async function main() {
     true,
   );
 
-  console.log(`\nProwizja do wyświetlenia: ${formatCurrency(read.feeAmount)}`);
+  console.log(`\nNależność do wyświetlenia: ${formatCurrency(read.payoutAmount)}`);
 
   const removed = await deleteInvoice(read.id);
   check("faktura usunięta", removed?.id, read.id);

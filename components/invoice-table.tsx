@@ -15,7 +15,7 @@ import { formatCurrency } from "@/lib/money";
 
 /**
  * Lp. liczymy przy wyświetlaniu, a nie z `id` — po usunięciu faktury numeracja
- * ma iść dalej bez dziur. Na telefonie sześć kolumn się nie mieści, więc
+ * ma iść dalej bez dziur. Na telefonie tyle kolumn się nie mieści, więc
  * zamiast tabeli pokazujemy listę kart.
  */
 export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
@@ -43,7 +43,7 @@ export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
                 <span className="flex items-baseline justify-between gap-2 text-sm text-muted-foreground">
                   <span className="truncate">{invoice.buyerName}</span>
                   <span className="shrink-0">
-                    prowizja {formatCurrency(invoice.feeAmount)}
+                    dla mnie {formatCurrency(invoice.payoutAmount)}
                   </span>
                 </span>
               </span>
@@ -62,7 +62,8 @@ export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
               <TableHead>Sprzedawca</TableHead>
               <TableHead>Nabywca</TableHead>
               <TableHead className="text-right">Brutto</TableHead>
-              <TableHead className="text-right">Prowizja</TableHead>
+              <TableHead className="text-right">Cena dla mnie</TableHead>
+              <TableHead className="text-right">Dla mnie</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -82,8 +83,11 @@ export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
                 <TableCell className="text-right font-medium">
                   {formatCurrency(invoice.grossAmount)}
                 </TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {formatCurrency(invoice.costAmount)}
+                </TableCell>
                 <TableCell className="text-right">
-                  {formatCurrency(invoice.feeAmount)}
+                  {formatCurrency(invoice.payoutAmount)}
                 </TableCell>
               </TableRow>
             ))}

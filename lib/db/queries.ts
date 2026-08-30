@@ -1,10 +1,10 @@
 import { and, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 
-import { calculateFee, DEFAULT_FEE_RATE, isValidFeeRate } from "@/lib/fees";
 import { parseAmount } from "@/lib/money";
+import { calculatePayout, normalizeCostAmount } from "@/lib/payout";
 
 import { getDb } from "./index";
-import { aiUsage, invoices, settings, type Invoice } from "./schema";
+import { aiUsage, invoices, type Invoice } from "./schema";
 
 export type InvoiceInput = {
   invoiceNumber: string;
@@ -18,8 +18,8 @@ export type InvoiceInput = {
   netAmount?: string | null;
   vatAmount?: string | null;
   imagePathname?: string | null;
-  /** Gdy pusta, bierzemy aktualną stawkę z ustawień. */
-  feeRate?: string | null;
+  /** Cena, jaką sam zapłaciłem; pusta znaczy zero. */
+  costAmount?: string | null;
 };
 
 export type InvoiceFilters = {
@@ -36,11 +36,6 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Znaki, które w `LIKE` znaczą „cokolwiek" — w tekście od użytkownika mają być zwykłymi znakami. */
 function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, "\\$&");
-}
-
-/** Stawka w postaci gotowej do zapisu albo `null`, gdy wartości nie da się użyć. */
-function normalizeFeeRate(value: string | null | undefined): string | null {
-  return isValidFeeRate(value) ? parseAmount(value) : null;
 }
 
 function filterConditions(filters: InvoiceFilters): SQL | undefined {
@@ -131,12 +126,13 @@ function optionalAmount(value: string | null | undefined): string | null {
 }
 
 export async function createInvoice(input: InvoiceInput): Promise<Invoice> {
-  const feeRate =
-    normalizeFeeRate(input.feeRate) ?? (await getSettings()).feeRate;
-
   const grossAmount = requireAmount(input.grossAmount, "wartość brutto");
-  const feeAmount = calculateFee(grossAmount, feeRate);
-  if (feeAmount === null) throw new InvalidAmountError("prowizja");
+
+  const costAmount = normalizeCostAmount(input.costAmount);
+  if (costAmount === null) throw new InvalidAmountError("cena dla mnie");
+
+  const payoutAmount = calculatePayout(grossAmount, costAmount);
+  if (payoutAmount === null) throw new InvalidAmountError("należność dla mnie");
 
   const [row] = await getDb()
     .insert(invoices)
@@ -150,8 +146,8 @@ export async function createInvoice(input: InvoiceInput): Promise<Invoice> {
       grossAmount,
       netAmount: optionalAmount(input.netAmount),
       vatAmount: optionalAmount(input.vatAmount),
-      feeRate,
-      feeAmount,
+      costAmount,
+      payoutAmount,
       imagePathname: input.imagePathname ?? null,
     })
     .returning();
@@ -160,9 +156,8 @@ export async function createInvoice(input: InvoiceInput): Promise<Invoice> {
 }
 
 /**
- * Przy edycji zostawiamy stawkę zapisaną razem z fakturą, ale prowizję liczymy
- * od nowa — inaczej po poprawieniu kwoty brutto kwota prowizji przestałaby się
- * zgadzać ze stawką.
+ * Należność liczymy przy każdej edycji od nowa — inaczej po poprawieniu kwoty
+ * brutto albo ceny dla mnie w kolumnie zostałaby stara wartość.
  */
 export async function updateInvoice(
   id: number,
@@ -171,11 +166,13 @@ export async function updateInvoice(
   const current = await getInvoice(id);
   if (current === null) return null;
 
-  const feeRate = normalizeFeeRate(input.feeRate) ?? current.feeRate;
-
   const grossAmount = requireAmount(input.grossAmount, "wartość brutto");
-  const feeAmount = calculateFee(grossAmount, feeRate);
-  if (feeAmount === null) throw new InvalidAmountError("prowizja");
+
+  const costAmount = normalizeCostAmount(input.costAmount);
+  if (costAmount === null) throw new InvalidAmountError("cena dla mnie");
+
+  const payoutAmount = calculatePayout(grossAmount, costAmount);
+  if (payoutAmount === null) throw new InvalidAmountError("należność dla mnie");
 
   const [row] = await getDb()
     .update(invoices)
@@ -189,8 +186,8 @@ export async function updateInvoice(
       grossAmount,
       netAmount: optionalAmount(input.netAmount),
       vatAmount: optionalAmount(input.vatAmount),
-      feeRate,
-      feeAmount,
+      costAmount,
+      payoutAmount,
       imagePathname: input.imagePathname ?? current.imagePathname,
     })
     .where(eq(invoices.id, id))
@@ -212,21 +209,6 @@ function normalizeNip(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
   const digits = value.replace(/[^\d]/g, "");
   return digits.length === 0 ? null : digits;
-}
-
-/** Wiersz ustawień powinien istnieć po seedzie, ale dorabiamy go, gdyby zniknął. */
-export async function getSettings(): Promise<{ feeRate: string }> {
-  const db = getDb();
-  const [row] = await db.select().from(settings).where(eq(settings.id, 1)).limit(1);
-  if (row) return { feeRate: row.feeRate };
-
-  const [created] = await db
-    .insert(settings)
-    .values({ id: 1, feeRate: DEFAULT_FEE_RATE })
-    .onConflictDoNothing()
-    .returning();
-
-  return { feeRate: created?.feeRate ?? DEFAULT_FEE_RATE };
 }
 
 export type AiUsageInput = {
@@ -293,22 +275,4 @@ export async function getAiUsageByModel(
     .where(gte(aiUsage.createdAt, since))
     .groupBy(aiUsage.model)
     .orderBy(aiUsage.model);
-}
-
-export async function updateSettings(feeRate: string): Promise<{ feeRate: string }> {
-  const normalized = normalizeFeeRate(feeRate);
-  if (normalized === null) {
-    throw new Error("Stawka prowizji musi być liczbą od 0 do 100.");
-  }
-
-  const [row] = await getDb()
-    .insert(settings)
-    .values({ id: 1, feeRate: normalized, updatedAt: new Date() })
-    .onConflictDoUpdate({
-      target: settings.id,
-      set: { feeRate: normalized, updatedAt: new Date() },
-    })
-    .returning();
-
-  return { feeRate: row.feeRate };
 }

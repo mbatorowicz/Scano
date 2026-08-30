@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Scano — skaner faktur",
     short_name: "Scano",
     description:
-      "Zrób zdjęcie faktury telefonem. Dane odczytuje AI, prowizja liczy się sama.",
+      "Zrób zdjęcie faktury telefonem. Dane odczytuje AI, należność liczy się sama.",
     lang: "pl",
     start_url: "/",
     scope: "/",

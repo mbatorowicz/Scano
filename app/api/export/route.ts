@@ -14,8 +14,8 @@ const COLUMNS = [
   "Brutto",
   "Netto",
   "VAT",
-  "Stawka prowizji [%]",
-  "Prowizja",
+  "Cena dla mnie",
+  "Należność dla mnie",
 ];
 
 /**
@@ -57,8 +57,8 @@ export async function GET(request: Request) {
       csvAmount(invoice.grossAmount),
       csvAmount(invoice.netAmount),
       csvAmount(invoice.vatAmount),
-      csvAmount(invoice.feeRate),
-      csvAmount(invoice.feeAmount),
+      csvAmount(invoice.costAmount),
+      csvAmount(invoice.payoutAmount),
     ]
       .map(escapeCsv)
       .join(SEPARATOR),

@@ -42,6 +42,7 @@ export default async function InvoicePage(props: PageProps<"/invoice/[id]">) {
     grossAmount: formatAmount(invoice.grossAmount),
     netAmount: invoice.netAmount === null ? null : formatAmount(invoice.netAmount),
     vatAmount: invoice.vatAmount === null ? null : formatAmount(invoice.vatAmount),
+    costAmount: formatAmount(invoice.costAmount),
   });
 
   return (
@@ -83,9 +84,6 @@ export default async function InvoicePage(props: PageProps<"/invoice/[id]">) {
         initialValues={values}
         invoiceId={invoice.id}
         imagePathname={invoice.imagePathname}
-        // Prowizję liczymy stawką zapisaną razem z fakturą, żeby zmiana
-        // w ustawieniach nie przeliczała wstecz historii.
-        feeRate={invoice.feeRate}
         submitLabel="Zapisz zmiany"
       />
     </div>

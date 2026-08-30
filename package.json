@@ -10,7 +10,6 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx scripts/seed.ts",
     "db:check": "tsx scripts/db-check.ts",
     "blob:clean": "tsx scripts/clean-blobs.ts",
     "form:check": "tsx scripts/form-check.ts",

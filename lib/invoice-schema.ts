@@ -49,6 +49,7 @@ export const invoiceFormSchema = z.object({
   grossAmount: requiredAmount,
   netAmount: optionalAmount,
   vatAmount: optionalAmount,
+  costAmount: optionalAmount,
 });
 
 export type ParsedInvoiceForm = z.output<typeof invoiceFormSchema>;

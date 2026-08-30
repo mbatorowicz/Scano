@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { calculateFee } from "@/lib/fees";
 import {
   DUPLICATE_CONFIRM_FIELD,
   DUPLICATE_CONFIRMED_VALUE,
@@ -34,7 +33,12 @@ import {
   type InvoiceFormState,
   type InvoiceFormValues,
 } from "@/lib/invoice-form";
-import { formatCurrency, formatRate } from "@/lib/money";
+import { formatCurrency } from "@/lib/money";
+import {
+  calculatePayout,
+  INCOME_TAX_PERCENT,
+  VAT_PERCENT,
+} from "@/lib/payout";
 import { cn } from "@/lib/utils";
 
 type Field = {
@@ -90,6 +94,13 @@ const SECTIONS: Section[] = [
       },
       { name: "netAmount", label: "Netto", inputMode: "decimal", placeholder: "opcjonalnie" },
       { name: "vatAmount", label: "VAT", inputMode: "decimal", placeholder: "opcjonalnie" },
+      {
+        name: "costAmount",
+        label: "Cena dla mnie",
+        inputMode: "decimal",
+        placeholder: "0,00",
+        wide: true,
+      },
     ],
   },
 ];
@@ -100,8 +111,6 @@ type InvoiceFormProps = {
     formData: FormData,
   ) => Promise<InvoiceFormState>;
   initialValues: InvoiceFormValues;
-  /** Stawka, według której pokazujemy prowizję pod kwotą brutto. */
-  feeRate: string;
   invoiceId?: number;
   imagePathname?: string | null;
   /** Adres miniatury: lokalne zdjęcie ze skanu albo trasa `/api/image`. */
@@ -116,7 +125,6 @@ type InvoiceFormProps = {
 export function InvoiceForm({
   action,
   initialValues,
-  feeRate,
   invoiceId,
   imagePathname,
   imageSrc,
@@ -142,7 +150,7 @@ export function InvoiceForm({
     }
   }, [state, router, redirectTo]);
 
-  const fee = calculateFee(values.grossAmount, feeRate);
+  const payout = calculatePayout(values.grossAmount, values.costAmount);
   // Po zapisie trwa jeszcze nawigacja, a formularz nie jest już „w toku" —
   // bez tego dałoby się kliknąć zapis drugi raz i dodać fakturę dwa razy.
   const busy = isPending || state.status === "saved";
@@ -191,12 +199,19 @@ export function InvoiceForm({
                 }
                 disabled={busy}
               >
-                {field.name === "grossAmount" ? (
+                {field.name === "costAmount" ? (
                   <p className="text-sm text-muted-foreground">
-                    Prowizja {formatRate(feeRate)}:{" "}
-                    <span className="font-medium text-foreground">
-                      {formatCurrency(fee)}
-                    </span>
+                    {payout === null ? (
+                      `Należność dla mnie policzy się z wartości brutto po VAT ${VAT_PERCENT}% i podatku ${INCOME_TAX_PERCENT}%.`
+                    ) : (
+                      <>
+                        Należność dla mnie:{" "}
+                        <span className="font-medium text-foreground">
+                          {formatCurrency(payout)}
+                        </span>{" "}
+                        — po VAT {VAT_PERCENT}% i podatku {INCOME_TAX_PERCENT}%.
+                      </>
+                    )}
                   </p>
                 ) : null}
               </FormField>

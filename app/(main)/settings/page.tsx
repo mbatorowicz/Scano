@@ -10,15 +10,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { FREE_TIER_DAILY_LIMIT } from "@/lib/ai/extract-invoice";
-import {
-  getAiUsageByModel,
-  getAiUsageSummary,
-  getSettings,
-} from "@/lib/db/queries";
-import { formatRateValue } from "@/lib/money";
+import { getAiUsageByModel, getAiUsageSummary } from "@/lib/db/queries";
 
 import { logout } from "./actions";
-import { FeeRateForm } from "./fee-rate-form";
 
 export const metadata: Metadata = {
   title: "Ustawienia",
@@ -36,7 +30,6 @@ function startOfDay(now = new Date()): Date {
 const liczba = new Intl.NumberFormat("pl-PL");
 
 export default async function SettingsPage() {
-  const { feeRate } = await getSettings();
   const usage = await getAiUsageSummary(startOfMonth());
   const today = await getAiUsageByModel(startOfDay());
 
@@ -45,23 +38,9 @@ export default async function SettingsPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Ustawienia</h1>
         <p className="text-sm text-muted-foreground">
-          Stawka prowizji i dostęp do aplikacji.
+          Zużycie AI i dostęp do aplikacji.
         </p>
       </header>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Prowizja</CardTitle>
-          <CardDescription>
-            Zmiana dotyczy tylko faktur zapisanych od tej chwili. Każda faktura
-            trzyma stawkę, którą policzono ją przy zapisie, więc historia zostaje
-            nietknięta.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FeeRateForm feeRate={formatRateValue(feeRate)} />
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>

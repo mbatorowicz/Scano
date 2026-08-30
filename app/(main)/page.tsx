@@ -19,7 +19,8 @@ export default async function InvoicesPage(props: PageProps<"/">) {
   const invoices = await listInvoices(toInvoiceFilters(values));
 
   const grossTotal = sumAmounts(invoices.map((invoice) => invoice.grossAmount));
-  const feeTotal = sumAmounts(invoices.map((invoice) => invoice.feeAmount));
+  const costTotal = sumAmounts(invoices.map((invoice) => invoice.costAmount));
+  const payoutTotal = sumAmounts(invoices.map((invoice) => invoice.payoutAmount));
   const filtered = hasAnyFilter(values);
 
   return (
@@ -27,7 +28,7 @@ export default async function InvoicesPage(props: PageProps<"/">) {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Faktury</h1>
         <p className="text-sm text-muted-foreground">
-          Lista zeskanowanych faktur wraz z sumą prowizji.
+          Lista zeskanowanych faktur wraz z sumą należności dla mnie.
         </p>
       </header>
 
@@ -58,10 +59,11 @@ export default async function InvoicesPage(props: PageProps<"/">) {
       ) : (
         <>
           <Card>
-            <CardContent className="grid grid-cols-3 gap-2 text-center">
+            <CardContent className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
               <Summary label="Faktur" value={String(invoices.length)} />
-              <Summary label="Wartość brutto" value={formatCurrency(grossTotal)} />
-              <Summary label="Prowizja" value={formatCurrency(feeTotal)} />
+              <Summary label="Suma zakupów" value={formatCurrency(costTotal)} />
+              <Summary label="Suma sprzedaży" value={formatCurrency(grossTotal)} />
+              <Summary label="Dla mnie" value={formatCurrency(payoutTotal)} />
             </CardContent>
           </Card>
 

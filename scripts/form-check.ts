@@ -41,6 +41,7 @@ const FILLED = {
   grossAmount: "750,00 zł",
   netAmount: "609,76",
   vatAmount: "140,24",
+  costAmount: "700,00",
 };
 
 function checkValidation() {
@@ -54,9 +55,10 @@ function checkValidation() {
   check("brutto z symbolem waluty i przecinkiem", parsed.data.grossAmount, "750.00");
   check("NIP bez kresek", parsed.data.sellerNip, "8241167409");
   check("netto z przecinkiem", parsed.data.netAmount, "609.76");
+  check("cena dla mnie z przecinkiem", parsed.data.costAmount, "700.00");
 
   const empty = invoiceFormSchema.safeParse(
-    readInvoiceFormValues(form({ netAmount: "", vatAmount: "" })),
+    readInvoiceFormValues(form({ netAmount: "", vatAmount: "", costAmount: "" })),
   );
   check("pusty formularz odrzucony", empty.success, false);
   if (!empty.success) {
@@ -65,6 +67,7 @@ function checkValidation() {
     check("brak daty zgłoszony", errors.issueDate, "Podaj datę wystawienia.");
     check("brak brutto zgłoszony", errors.grossAmount, "Podaj wartość brutto.");
     check("puste netto bez błędu", errors.netAmount, undefined);
+    check("pusta cena dla mnie bez błędu", errors.costAmount, undefined);
   }
 
   const bad = invoiceFormSchema.safeParse(
@@ -100,7 +103,8 @@ async function main() {
 
   const read = await getInvoice(created.id);
   check("faktura z formularza wylądowała w bazie", read?.grossAmount, "750.00");
-  check("prowizja policzona przy zapisie", read?.feeAmount, "37.50");
+  check("cena dla mnie zapisana", read?.costAmount, "700.00");
+  check("należność policzona przy zapisie", read?.payoutAmount, "34.16");
   check("ścieżka zdjęcia zapisana", read?.imagePathname, "faktury/2026-08/faktura-test.jpg");
 
   const duplicate = await findDuplicateInvoice(

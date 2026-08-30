@@ -125,15 +125,3 @@ export function formatCurrency(value: string | null | undefined): string {
   const formatted = formatAmount(value);
   return formatted === "—" ? formatted : `${formatted}\u00a0zł`;
 }
-
-/** Stawka bez znaku procenta, do wpisania w pole formularza: `"5.00"` na `"5"`. */
-export function formatRateValue(value: string | null | undefined): string {
-  if (toMinorUnits(value) === null) return "";
-  return formatAmount(value).replace(/,?0+$/, "");
-}
-
-/** Stawka prowizji do wyświetlenia: `"5.00"` na `"5%"`, `"2.50"` na `"2,5%"`. */
-export function formatRate(value: string | null | undefined): string {
-  const formatted = formatRateValue(value);
-  return formatted === "" ? "—" : `${formatted}%`;
-}

@@ -340,7 +340,7 @@ function normalize(raw: z.infer<typeof extractionSchema>): ExtractedInvoice {
   const vatAmount = parseAmount(raw.vatAmount);
   let grossAmount = parseAmount(raw.grossAmount);
 
-  // Bez kwoty brutto nie ma z czego policzyć prowizji, a suma netto i VAT jest
+  // Bez kwoty brutto nie ma z czego policzyć należności, a suma netto i VAT jest
   // tu pewna: to jedyna wartość, jaką wyliczamy zamiast odczytywać.
   if (grossAmount === null && netAmount !== null && vatAmount !== null) {
     grossAmount = sumAmounts([netAmount, vatAmount]);
