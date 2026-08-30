@@ -21,7 +21,7 @@ import { createSettlement, deleteSettlement, updateSettlement } from "./service"
 /** Wypłata zmienia saldo, które widać i na liście faktur, i na rozliczeniach. */
 function revalidateSettlements(): void {
   revalidatePath("/settlements");
-  revalidatePath("/");
+  revalidatePath("/invoices");
 }
 
 export async function saveSettlement(

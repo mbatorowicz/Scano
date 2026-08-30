@@ -25,7 +25,7 @@ export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
         {invoices.map((invoice, index) => (
           <li key={invoice.id}>
             <Link
-              href={`/invoice/${invoice.id}`}
+              href={`/invoices/${invoice.id}`}
               className="flex items-center gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
             >
               <span className="flex-1 space-y-1">
@@ -72,7 +72,7 @@ export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
                 <TableCell className="text-muted-foreground">{index + 1}</TableCell>
                 <TableCell>
                   <Link
-                    href={`/invoice/${invoice.id}`}
+                    href={`/invoices/${invoice.id}`}
                     className="underline-offset-4 hover:underline"
                   >
                     {formatDate(invoice.issueDate)}

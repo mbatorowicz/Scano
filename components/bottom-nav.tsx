@@ -8,14 +8,14 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
-  href: "/" | "/scan" | "/settlements" | "/settings";
+  href: "/" | "/invoices" | "/settlements" | "/settings";
   label: string;
   icon: LucideIcon;
 };
 
 const items: NavItem[] = [
-  { href: "/", label: "Faktury", icon: ReceiptText },
-  { href: "/scan", label: "Skanuj", icon: Camera },
+  { href: "/", label: "Skanuj", icon: Camera },
+  { href: "/invoices", label: "Faktury", icon: ReceiptText },
   { href: "/settlements", label: "Rozliczenia", icon: Wallet },
   { href: "/settings", label: "Ustawienia", icon: Settings },
 ];

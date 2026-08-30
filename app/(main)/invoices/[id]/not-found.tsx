@@ -16,7 +16,7 @@ export default function InvoiceNotFound() {
       </div>
 
       <Button asChild className="h-12 text-base">
-        <Link href="/">
+        <Link href="/invoices">
           <ArrowLeft className="size-5" />
           Wróć do faktur
         </Link>

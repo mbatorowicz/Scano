@@ -22,7 +22,7 @@ export function InvoiceFilters({ values }: { values: FilterValues }) {
   return (
     <Card>
       <CardContent>
-        <form method="get" action="/" className="space-y-4">
+        <form method="get" action="/invoices" className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="filter-search" className="text-sm">
               Szukaj
@@ -71,7 +71,7 @@ export function InvoiceFilters({ values }: { values: FilterValues }) {
             </Button>
             {hasAnyFilter(values) ? (
               <Button asChild variant="outline" className="h-11 text-base">
-                <Link href="/">
+                <Link href="/invoices">
                   <X className="size-5" />
                   Wyczyść
                 </Link>

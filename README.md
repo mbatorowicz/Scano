@@ -23,6 +23,9 @@ Każda domena ma własny katalog w `lib/` i ten sam podział w środku:
 | `actions.ts` | sesja, walidacja, `revalidatePath` | Drizzle |
 | `form.ts`, `schema.ts` | kontrakt formularza wspólny dla klienta i serwera | bazy |
 
+Ekranem startowym (`/`) jest skanowanie — po zalogowaniu od razu widać aparat. Lista faktur
+stoi pod `/invoices`, a pojedyncza faktura pod `/invoices/[id]`.
+
 Tak wygląda `lib/invoices/`, `lib/settlements/` i `lib/ai-usage/`. Strony w `app/` czytają dane
 wprost z `repository.ts`, a formularze wołają `actions.ts`. Wspólne rzeczy: `lib/config.ts`
 (stawki i limity), `lib/forms/form-state.ts` (stan formularza i błędy pól), `lib/money.ts`,

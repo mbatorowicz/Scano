@@ -96,8 +96,8 @@ export async function saveInvoice(
       return failure("Nie znaleziono faktury do zapisania. Odśwież stronę.");
     }
 
-    revalidatePath("/");
-    revalidatePath(`/invoice/${saved.id}`);
+    revalidatePath("/invoices");
+    revalidatePath(`/invoices/${saved.id}`);
 
     return {
       status: "saved",
@@ -128,6 +128,6 @@ export async function removeInvoice(formData: FormData): Promise<void> {
   // Skutek jest ten sam, o który prosił użytkownik, więc to nie jest błąd.
   await deleteInvoice(id);
 
-  revalidatePath("/");
-  redirect("/");
+  revalidatePath("/invoices");
+  redirect("/invoices");
 }

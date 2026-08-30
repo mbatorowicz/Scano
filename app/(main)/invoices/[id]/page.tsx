@@ -21,7 +21,7 @@ function invoiceId(value: string): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-export default async function InvoicePage(props: PageProps<"/invoice/[id]">) {
+export default async function InvoicePage(props: PageProps<"/invoices/[id]">) {
   const { id } = await props.params;
   const parsedId = invoiceId(id);
   if (parsedId === null) notFound();
@@ -48,7 +48,7 @@ export default async function InvoicePage(props: PageProps<"/invoice/[id]">) {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-2">
         <Button asChild variant="ghost" className="h-11 text-base">
-          <Link href="/">
+          <Link href="/invoices">
             <ArrowLeft className="size-5" />
             Faktury
           </Link>

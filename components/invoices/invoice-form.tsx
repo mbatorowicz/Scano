@@ -31,7 +31,7 @@ export function InvoiceForm({
   imageSrc,
   missingFields = [],
   submitLabel = "Zapisz fakturę",
-  redirectTo = "/",
+  redirectTo = "/invoices",
 }: {
   action: (
     state: InvoiceFormState,
