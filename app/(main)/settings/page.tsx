@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { Building2, ChevronRight, LogOut } from "lucide-react";
 
 import { SummaryStat } from "@/components/summary-stat";
 import { Button } from "@/components/ui/button";
@@ -88,6 +89,26 @@ export default async function SettingsPage() {
               </dl>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Kontrahenci</CardTitle>
+          <CardDescription>
+            Słownik sprzedawców i nabywców. Poprawiona nazwa wraca przy skanie
+            i widać ją na wszystkich fakturach tej firmy.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link
+            href="/contractors"
+            className="flex items-center gap-3 rounded-xl bg-muted/50 p-3 ring-1 ring-foreground/10"
+          >
+            <Building2 className="size-5 shrink-0 text-muted-foreground" />
+            <span className="flex-1 text-sm font-medium">Lista kontrahentów</span>
+            <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+          </Link>
         </CardContent>
       </Card>
 

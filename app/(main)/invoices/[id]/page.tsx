@@ -7,6 +7,7 @@ import { DeleteInvoice } from "@/components/invoices/delete-invoice";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
 import { Button } from "@/components/ui/button";
 import { invoiceImageHref } from "@/lib/blob";
+import { listContractors } from "@/lib/contractors/repository";
 import { saveInvoice } from "@/lib/invoices/actions";
 import { toInvoiceFormValues } from "@/lib/invoices/form";
 import { getInvoice } from "@/lib/invoices/repository";
@@ -26,7 +27,10 @@ export default async function InvoicePage(props: PageProps<"/invoices/[id]">) {
   const parsedId = invoiceId(id);
   if (parsedId === null) notFound();
 
-  const invoice = await getInvoice(parsedId);
+  const [invoice, contractors] = await Promise.all([
+    getInvoice(parsedId),
+    listContractors(),
+  ]);
   if (invoice === null) notFound();
 
   // Kwoty wracają z bazy jako "750.00", a w formularzu mają wyglądać tak,
@@ -36,8 +40,10 @@ export default async function InvoicePage(props: PageProps<"/invoices/[id]">) {
     issueDate: invoice.issueDate,
     sellerName: invoice.sellerName,
     sellerNip: invoice.sellerNip,
+    sellerContractorId: String(invoice.sellerId),
     buyerName: invoice.buyerName,
     buyerNip: invoice.buyerNip,
+    buyerContractorId: String(invoice.buyerId),
     grossAmount: formatAmount(invoice.grossAmount),
     netAmount: invoice.netAmount === null ? null : formatAmount(invoice.netAmount),
     vatAmount: invoice.vatAmount === null ? null : formatAmount(invoice.vatAmount),
@@ -81,6 +87,7 @@ export default async function InvoicePage(props: PageProps<"/invoices/[id]">) {
       <InvoiceForm
         action={saveInvoice}
         initialValues={values}
+        contractors={contractors}
         invoiceId={invoice.id}
         imagePathname={invoice.imagePathname}
         submitLabel="Zapisz zmiany"

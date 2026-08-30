@@ -11,7 +11,6 @@ import {
   optionalAmount,
   requireAmount,
 } from "@/lib/money";
-import { nipDigits } from "@/lib/nip";
 import { calculatePayout, normalizeCostAmount } from "@/lib/payout";
 
 import {
@@ -20,16 +19,15 @@ import {
   insertInvoice,
   updateInvoiceRow,
   type InvoiceRow,
+  type InvoiceWithParties,
 } from "./repository";
 
 export type InvoiceInput = {
   invoiceNumber: string;
   /** Data w formacie ISO (`2026-08-12`), tak jak trzyma ją kolumna `date`. */
   issueDate: string;
-  sellerName: string;
-  sellerNip?: string | null;
-  buyerName: string;
-  buyerNip?: string | null;
+  sellerId: number;
+  buyerId: number;
   grossAmount: string;
   netAmount?: string | null;
   vatAmount?: string | null;
@@ -54,10 +52,8 @@ function toRow(input: InvoiceInput, imagePathname: string | null): InvoiceRow {
   return {
     invoiceNumber: input.invoiceNumber.trim(),
     issueDate: input.issueDate,
-    sellerName: input.sellerName.trim(),
-    sellerNip: nipDigits(input.sellerNip),
-    buyerName: input.buyerName.trim(),
-    buyerNip: nipDigits(input.buyerNip),
+    sellerId: input.sellerId,
+    buyerId: input.buyerId,
     grossAmount,
     netAmount: optionalAmount(input.netAmount),
     vatAmount: optionalAmount(input.vatAmount),
@@ -67,21 +63,34 @@ function toRow(input: InvoiceInput, imagePathname: string | null): InvoiceRow {
   };
 }
 
-export async function createInvoice(input: InvoiceInput): Promise<Invoice> {
-  return insertInvoice(toRow(input, input.imagePathname ?? null));
+async function withParties(id: number): Promise<InvoiceWithParties> {
+  const row = await getInvoice(id);
+  if (row === null) {
+    throw new Error("Zapisana faktura zniknęła zanim zdążyliśmy ją odczytać.");
+  }
+  return row;
+}
+
+export async function createInvoice(
+  input: InvoiceInput,
+): Promise<InvoiceWithParties> {
+  const row = await insertInvoice(toRow(input, input.imagePathname ?? null));
+  return withParties(row.id);
 }
 
 export async function updateInvoice(
   id: number,
   input: InvoiceInput,
-): Promise<Invoice | null> {
+): Promise<InvoiceWithParties | null> {
   const current = await getInvoice(id);
   if (current === null) return null;
 
   // Edycja bez nowego zdjęcia nie może skasować tego, które już jest.
   const imagePathname = input.imagePathname ?? current.imagePathname;
 
-  return updateInvoiceRow(id, toRow(input, imagePathname));
+  const row = await updateInvoiceRow(id, toRow(input, imagePathname));
+  if (row === null) return null;
+  return withParties(row.id);
 }
 
 /**

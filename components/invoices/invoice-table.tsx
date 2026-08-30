@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/dates";
-import type { Invoice } from "@/lib/db/schema";
+import type { InvoiceWithParties } from "@/lib/invoices/repository";
 import { formatCurrency } from "@/lib/money";
 
 /**
@@ -18,7 +18,7 @@ import { formatCurrency } from "@/lib/money";
  * ma iść dalej bez dziur. Na telefonie tyle kolumn się nie mieści, więc
  * zamiast tabeli pokazujemy listę kart.
  */
-export function InvoiceTable({ invoices }: { invoices: Invoice[] }) {
+export function InvoiceTable({ invoices }: { invoices: InvoiceWithParties[] }) {
   return (
     <>
       <ul className="space-y-2 sm:hidden">

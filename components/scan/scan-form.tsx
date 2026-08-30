@@ -8,9 +8,14 @@ import { ScanCapture } from "@/components/scan/scan-capture";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useInvoiceScan } from "@/hooks/use-invoice-scan";
+import type { ContractorOption } from "@/lib/contractors/form";
 import { saveInvoice } from "@/lib/invoices/actions";
 
-export function ScanForm() {
+export function ScanForm({
+  contractors,
+}: {
+  contractors: readonly ContractorOption[];
+}) {
   const cameraInput = useRef<HTMLInputElement>(null);
   const galleryInput = useRef<HTMLInputElement>(null);
   const { preview, isReading, error, draft, readInvoice, startOver, enterManually } =
@@ -72,6 +77,7 @@ export function ScanForm() {
         <InvoiceForm
           action={saveInvoice}
           initialValues={draft.values}
+          contractors={contractors}
           imagePathname={draft.imagePathname}
           imageSrc={draft.imageSrc}
           missingFields={draft.missingFields}

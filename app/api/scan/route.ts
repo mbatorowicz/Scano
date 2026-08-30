@@ -1,6 +1,7 @@
 import { put } from "@vercel/blob";
 
 import { recordAiUsage } from "@/lib/ai-usage/service";
+import { canonizeExtractedInvoice } from "@/lib/ai/invoice-extraction/canonize";
 import {
   extractInvoiceWithFallback,
   InvoiceScanError,
@@ -97,6 +98,6 @@ export async function POST(request: Request) {
   return Response.json({
     imagePathname: pathname,
     imageHref: invoiceImageHref(pathname),
-    data: result.data,
+    data: await canonizeExtractedInvoice(result.data),
   });
 }

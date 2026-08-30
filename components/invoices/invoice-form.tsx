@@ -5,12 +5,18 @@ import { startTransition, useActionState, useEffect, useRef, useState } from "re
 import { LoaderCircle, Save } from "lucide-react";
 import { toast } from "sonner";
 
+import { ContractorField } from "@/components/invoices/contractor-field";
 import { InvoiceFormField } from "@/components/invoices/invoice-form-field";
 import { InvoicePhoto } from "@/components/invoices/invoice-photo";
 import { PayoutHint } from "@/components/invoices/payout-hint";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ContractorOption } from "@/lib/contractors/form";
+import {
+  matchContractorByName,
+  matchContractorByNip,
+} from "@/lib/contractors/match-local";
 import {
   DUPLICATE_CONFIRM_FIELD,
   DUPLICATE_CONFIRMED_VALUE,
@@ -23,9 +29,20 @@ import {
 } from "@/lib/invoices/form";
 import { INVOICE_FORM_SECTIONS } from "@/lib/invoices/form-fields";
 
+type Party = "seller" | "buyer";
+
+function partyFields(party: Party) {
+  return {
+    name: `${party}Name`,
+    nip: `${party}Nip`,
+    id: `${party}ContractorId`,
+  } as const;
+}
+
 export function InvoiceForm({
   action,
   initialValues,
+  contractors,
   invoiceId,
   imagePathname,
   imageSrc,
@@ -38,6 +55,7 @@ export function InvoiceForm({
     formData: FormData,
   ) => Promise<InvoiceFormState>;
   initialValues: InvoiceFormValues;
+  contractors: readonly ContractorOption[];
   invoiceId?: number;
   imagePathname?: string | null;
   /** Adres miniatury: lokalne zdjęcie ze skanu albo trasa `/api/image`. */
@@ -51,6 +69,8 @@ export function InvoiceForm({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [values, setValues] = useState(initialValues);
+  const [renames, setRenames] = useState<Record<number, ContractorOption>>({});
+  const directory = contractors.map((row) => renames[row.id] ?? row);
   const [state, formAction, isPending] = useActionState(
     action,
     INITIAL_INVOICE_FORM_STATE,
@@ -73,6 +93,58 @@ export function InvoiceForm({
 
   function setValue(name: InvoiceFieldName, value: string) {
     setValues((previous) => ({ ...previous, [name]: value }));
+  }
+
+  function applyName(party: Party, name: string) {
+    setValues((previous) => {
+      const fields = partyFields(party);
+      const match = matchContractorByName(name, directory);
+      return {
+        ...previous,
+        [fields.name]: name,
+        [fields.id]: match ? String(match.id) : "",
+        [fields.nip]:
+          match?.nip && previous[fields.nip] === ""
+            ? match.nip
+            : previous[fields.nip],
+      };
+    });
+  }
+
+  function applyNip(party: Party, nip: string) {
+    setValues((previous) => {
+      const fields = partyFields(party);
+      const byNip = matchContractorByNip(nip, directory);
+      if (byNip) {
+        return {
+          ...previous,
+          [fields.nip]: nip,
+          [fields.name]: byNip.name,
+          [fields.id]: String(byNip.id),
+        };
+      }
+      const byName = matchContractorByName(previous[fields.name], directory);
+      return {
+        ...previous,
+        [fields.nip]: nip,
+        [fields.id]: byName ? String(byName.id) : "",
+      };
+    });
+  }
+
+  function applyContractor(party: Party, contractor: ContractorOption) {
+    const fields = partyFields(party);
+    setValues((previous) => ({
+      ...previous,
+      [fields.name]: contractor.name,
+      [fields.nip]: contractor.nip ?? "",
+      [fields.id]: String(contractor.id),
+    }));
+  }
+
+  function applyRename(party: Party, contractor: ContractorOption) {
+    setRenames((previous) => ({ ...previous, [contractor.id]: contractor }));
+    applyContractor(party, contractor);
   }
 
   /** Zapis mimo ostrzeżenia o duplikacie — ta sama akcja, tylko z potwierdzeniem. */
@@ -102,27 +174,69 @@ export function InvoiceForm({
             <CardTitle>{section.title}</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {section.fields.map((field) => (
-              <InvoiceFormField
-                key={field.name}
-                field={field}
-                value={values[field.name]}
-                onChange={(value) => setValue(field.name, value)}
-                error={state.fieldErrors[field.name]}
-                missing={
-                  missingFields.includes(field.name) &&
-                  values[field.name].length === 0
-                }
-                disabled={busy}
-              >
-                {field.name === "costAmount" ? (
-                  <PayoutHint
-                    grossAmount={values.grossAmount}
-                    costAmount={values.costAmount}
+            {section.fields.map((field) => {
+              if (
+                field.kind === "contractor" &&
+                field.nipField !== undefined &&
+                field.idField !== undefined
+              ) {
+                const party: Party =
+                  field.name === "sellerName" ? "seller" : "buyer";
+                return (
+                  <ContractorField
+                    key={field.name}
+                    field={field}
+                    name={values[field.name]}
+                    contractorId={values[field.idField]}
+                    contractors={directory}
+                    onNameChange={(value) => applyName(party, value)}
+                    onSelect={(contractor) => applyContractor(party, contractor)}
+                    onRenamed={(contractor) => applyRename(party, contractor)}
+                    error={state.fieldErrors[field.name]}
+                    missing={
+                      missingFields.includes(field.name) &&
+                      values[field.name].length === 0
+                    }
+                    disabled={busy}
                   />
-                ) : null}
-              </InvoiceFormField>
-            ))}
+                );
+              }
+
+              const partyNip: Party | null =
+                field.name === "sellerNip"
+                  ? "seller"
+                  : field.name === "buyerNip"
+                    ? "buyer"
+                    : null;
+
+              return (
+                <InvoiceFormField
+                  key={field.name}
+                  field={field}
+                  value={values[field.name]}
+                  onChange={(value) => {
+                    if (partyNip !== null) {
+                      applyNip(partyNip, value);
+                      return;
+                    }
+                    setValue(field.name, value);
+                  }}
+                  error={state.fieldErrors[field.name]}
+                  missing={
+                    missingFields.includes(field.name) &&
+                    values[field.name].length === 0
+                  }
+                  disabled={busy}
+                >
+                  {field.name === "costAmount" ? (
+                    <PayoutHint
+                      grossAmount={values.grossAmount}
+                      costAmount={values.costAmount}
+                    />
+                  ) : null}
+                </InvoiceFormField>
+              );
+            })}
           </CardContent>
         </Card>
       ))}

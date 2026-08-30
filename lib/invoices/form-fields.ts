@@ -12,6 +12,13 @@ export type InvoiceFieldConfig = {
   placeholder?: string;
   /** Pole zajmuje obie kolumny również na szerokim ekranie. */
   wide?: boolean;
+  /**
+   * Nazwa i NIP kontrahenta: podpowiedzi ze słownika oraz informacja,
+   * czy firma jest już w bazie.
+   */
+  kind?: "contractor";
+  nipField?: InvoiceFieldName;
+  idField?: InvoiceFieldName;
 };
 
 export type InvoiceFormSection = {
@@ -30,14 +37,28 @@ export const INVOICE_FORM_SECTIONS: readonly InvoiceFormSection[] = [
   {
     title: "Strony",
     fields: [
-      { name: "sellerName", label: "Sprzedawca", wide: true },
+      {
+        name: "sellerName",
+        label: "Sprzedawca",
+        wide: true,
+        kind: "contractor",
+        nipField: "sellerNip",
+        idField: "sellerContractorId",
+      },
       {
         name: "sellerNip",
         label: "NIP sprzedawcy",
         inputMode: "numeric",
         placeholder: "opcjonalnie",
       },
-      { name: "buyerName", label: "Nabywca", wide: true },
+      {
+        name: "buyerName",
+        label: "Nabywca",
+        wide: true,
+        kind: "contractor",
+        nipField: "buyerNip",
+        idField: "buyerContractorId",
+      },
       {
         name: "buyerNip",
         label: "NIP nabywcy",

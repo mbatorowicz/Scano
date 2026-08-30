@@ -7,6 +7,11 @@
  * przepuszczone przez nią dane trafiają do Neona w takiej postaci, jakiej
  * oczekują listy i eksport.
  */
+import {
+  ContractorInUseError,
+  deleteContractor,
+  resolveContractor,
+} from "@/lib/contractors/service";
 import { findDuplicateInvoice, getInvoice } from "@/lib/invoices/repository";
 import {
   invoiceFormSchema,
@@ -52,8 +57,24 @@ async function main() {
     return;
   }
 
+  const seller = await resolveContractor({
+    name: parsed.data.sellerName,
+    nip: parsed.data.sellerNip,
+  });
+  const buyer = await resolveContractor({
+    name: parsed.data.buyerName,
+    nip: parsed.data.buyerNip,
+  });
+
   const created = await createInvoice({
-    ...parsed.data,
+    invoiceNumber: parsed.data.invoiceNumber,
+    issueDate: parsed.data.issueDate,
+    sellerId: seller.id,
+    buyerId: buyer.id,
+    grossAmount: parsed.data.grossAmount,
+    netAmount: parsed.data.netAmount,
+    vatAmount: parsed.data.vatAmount,
+    costAmount: parsed.data.costAmount,
     imagePathname: "faktury/2026-08/faktura-test.jpg",
   });
 
@@ -65,20 +86,28 @@ async function main() {
 
   const duplicate = await findDuplicateInvoice(
     parsed.data.invoiceNumber,
-    parsed.data.sellerName,
+    seller.id,
   );
   check("ten sam skan rozpoznany jako duplikat", duplicate?.id, created.id);
   check(
     "przy edycji własny wiersz nie jest duplikatem",
     await findDuplicateInvoice(
       parsed.data.invoiceNumber,
-      parsed.data.sellerName,
+      seller.id,
       created.id,
     ),
     null,
   );
 
   check("sprzątanie", (await deleteInvoice(created.id))?.id, created.id);
+
+  for (const party of [seller, buyer]) {
+    try {
+      await deleteContractor(party.id);
+    } catch (cause) {
+      if (!(cause instanceof ContractorInUseError)) throw cause;
+    }
+  }
 }
 
 main()

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { isInvoiceBlobPathname } from "@/lib/blob";
+import { resolveContractor } from "@/lib/contractors/service";
 import { formatDate } from "@/lib/dates";
 import {
   failedFormState,
@@ -67,10 +68,15 @@ export async function saveInvoice(
   const confirmed =
     formData.get(DUPLICATE_CONFIRM_FIELD) === DUPLICATE_CONFIRMED_VALUE;
 
+  const seller = await resolveContractor({
+    name: parsed.data.sellerName,
+    nip: parsed.data.sellerNip,
+  });
+
   if (!confirmed) {
     const duplicate = await findDuplicateInvoice(
       parsed.data.invoiceNumber,
-      parsed.data.sellerName,
+      seller.id,
       id ?? undefined,
     );
     if (duplicate !== null) {
@@ -83,8 +89,20 @@ export async function saveInvoice(
     }
   }
 
+  const buyer = await resolveContractor({
+    name: parsed.data.buyerName,
+    nip: parsed.data.buyerNip,
+  });
+
   const input: InvoiceInput = {
-    ...parsed.data,
+    invoiceNumber: parsed.data.invoiceNumber,
+    issueDate: parsed.data.issueDate,
+    sellerId: seller.id,
+    buyerId: buyer.id,
+    grossAmount: parsed.data.grossAmount,
+    netAmount: parsed.data.netAmount,
+    vatAmount: parsed.data.vatAmount,
+    costAmount: parsed.data.costAmount,
     imagePathname: readImagePathname(formData),
   };
 
@@ -98,6 +116,7 @@ export async function saveInvoice(
 
     revalidatePath("/invoices");
     revalidatePath(`/invoices/${saved.id}`);
+    revalidatePath("/contractors");
 
     return {
       status: "saved",
@@ -129,5 +148,6 @@ export async function removeInvoice(formData: FormData): Promise<void> {
   await deleteInvoice(id);
 
   revalidatePath("/invoices");
+  revalidatePath("/contractors");
   redirect("/invoices");
 }

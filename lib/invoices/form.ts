@@ -11,8 +11,11 @@ export type InvoiceFormValues = {
   issueDate: string;
   sellerName: string;
   sellerNip: string;
+  /** Id z bazy, gdy skan albo lista rozpoznały sprzedawcę; puste znaczy nowy. */
+  sellerContractorId: string;
   buyerName: string;
   buyerNip: string;
+  buyerContractorId: string;
   grossAmount: string;
   netAmount: string;
   vatAmount: string;
@@ -27,8 +30,10 @@ export const INVOICE_FIELD_NAMES: readonly InvoiceFieldName[] = [
   "issueDate",
   "sellerName",
   "sellerNip",
+  "sellerContractorId",
   "buyerName",
   "buyerNip",
+  "buyerContractorId",
   "grossAmount",
   "netAmount",
   "vatAmount",
@@ -40,8 +45,10 @@ export const EMPTY_INVOICE_FORM_VALUES: InvoiceFormValues = {
   issueDate: "",
   sellerName: "",
   sellerNip: "",
+  sellerContractorId: "",
   buyerName: "",
   buyerNip: "",
+  buyerContractorId: "",
   grossAmount: "",
   netAmount: "",
   vatAmount: "",
@@ -96,10 +103,16 @@ export function toInvoiceFormValues(
  * bez nabywcy albo bez daty. „Cena dla mnie" jest tu wyjątkiem: nie stoi na
  * fakturze, więc jej pustka nie jest niczyim przeoczeniem.
  */
+const HIDDEN_INVOICE_FIELDS: ReadonlySet<InvoiceFieldName> = new Set([
+  "costAmount",
+  "sellerContractorId",
+  "buyerContractorId",
+]);
+
 export function emptyInvoiceFields(
   values: InvoiceFormValues,
 ): InvoiceFieldName[] {
   return INVOICE_FIELD_NAMES.filter(
-    (name) => name !== "costAmount" && values[name].length === 0,
+    (name) => !HIDDEN_INVOICE_FIELDS.has(name) && values[name].length === 0,
   );
 }

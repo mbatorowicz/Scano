@@ -1,11 +1,14 @@
 import { ScanForm } from "@/components/scan/scan-form";
+import { listContractors } from "@/lib/contractors/repository";
 
 /**
  * Ekran startowy aplikacji: po zalogowaniu od razu widać aparat, bo
  * skanowanie faktury to jedyna czynność, po którą sięga się codziennie.
  * Tytuł strony zostaje domyślny — to strona główna, nie podstrona.
  */
-export default function ScanPage() {
+export default async function ScanPage() {
+  const contractors = await listContractors();
+
   return (
     <div className="space-y-6">
       <header className="space-y-1">
@@ -16,7 +19,7 @@ export default function ScanPage() {
         </p>
       </header>
 
-      <ScanForm />
+      <ScanForm contractors={contractors} />
     </div>
   );
 }

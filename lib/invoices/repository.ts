@@ -2,24 +2,45 @@
  * Zapytania o faktury i nic więcej: żadnych reguł biznesowych, żadnego
  * liczenia należności. Wiersz do zapisu przychodzi tu już policzony przez
  * `service.ts`, więc czytając ten plik widać dokładnie, co dzieje się w bazie.
+ *
+ * Nazwy stron nie stoją na fakturze — dołączamy je z `contractors`, żeby
+ * poprawka nazwy w słowniku była od razu widoczna na liście i w eksporcie.
  */
-import { and, desc, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, gte, ilike, lte, or, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import { isIsoDate } from "@/lib/dates";
 import { getDb } from "@/lib/db/index";
-import { invoices, type Invoice, type NewInvoice } from "@/lib/db/schema";
+import {
+  contractors,
+  invoices,
+  type Invoice,
+  type NewInvoice,
+} from "@/lib/db/schema";
 
 import type { InvoiceFilters } from "./filters";
 
 /** Kolumny, które ustawia aplikacja; `id` i `created_at` dokłada baza. */
 export type InvoiceRow = Omit<NewInvoice, "id" | "createdAt">;
 
+/** Faktura z nazwami i NIP-ami stron wyjętymi ze słownika. */
+export type InvoiceWithParties = Invoice & {
+  sellerName: string;
+  sellerNip: string | null;
+  buyerName: string;
+  buyerNip: string | null;
+};
+
 /** Znaki, które w `LIKE` znaczą „cokolwiek" — w tekście od użytkownika mają być zwykłymi znakami. */
 function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, "\\$&");
 }
 
-function filterConditions(filters: InvoiceFilters): SQL | undefined {
+function filterConditions(
+  filters: InvoiceFilters,
+  sellers: ReturnType<typeof alias<typeof contractors, "sellers">>,
+  buyers: ReturnType<typeof alias<typeof contractors, "buyers">>,
+): SQL | undefined {
   const conditions: SQL[] = [];
 
   if (isIsoDate(filters.from)) {
@@ -34,8 +55,8 @@ function filterConditions(filters: InvoiceFilters): SQL | undefined {
     const pattern = `%${escapeLikePattern(search)}%`;
     const match = or(
       ilike(invoices.invoiceNumber, pattern),
-      ilike(invoices.sellerName, pattern),
-      ilike(invoices.buyerName, pattern),
+      ilike(sellers.name, pattern),
+      ilike(buyers.name, pattern),
     );
     if (match) conditions.push(match);
   }
@@ -43,23 +64,42 @@ function filterConditions(filters: InvoiceFilters): SQL | undefined {
   return conditions.length === 0 ? undefined : and(...conditions);
 }
 
+function invoicesWithParties() {
+  const sellers = alias(contractors, "sellers");
+  const buyers = alias(contractors, "buyers");
+
+  return {
+    sellers,
+    buyers,
+    query: getDb()
+      .select({
+        ...getTableColumns(invoices),
+        sellerName: sellers.name,
+        sellerNip: sellers.nip,
+        buyerName: buyers.name,
+        buyerNip: buyers.nip,
+      })
+      .from(invoices)
+      .innerJoin(sellers, eq(invoices.sellerId, sellers.id))
+      .innerJoin(buyers, eq(invoices.buyerId, buyers.id)),
+  };
+}
+
 /** Faktury od najnowszej; `id` rozstrzyga kolejność w obrębie jednego dnia. */
 export async function listInvoices(
   filters: InvoiceFilters = {},
-): Promise<Invoice[]> {
-  return getDb()
-    .select()
-    .from(invoices)
-    .where(filterConditions(filters))
+): Promise<InvoiceWithParties[]> {
+  const { sellers, buyers, query } = invoicesWithParties();
+  return query
+    .where(filterConditions(filters, sellers, buyers))
     .orderBy(desc(invoices.issueDate), desc(invoices.id));
 }
 
-export async function getInvoice(id: number): Promise<Invoice | null> {
-  const [row] = await getDb()
-    .select()
-    .from(invoices)
-    .where(eq(invoices.id, id))
-    .limit(1);
+export async function getInvoice(
+  id: number,
+): Promise<InvoiceWithParties | null> {
+  const { query } = invoicesWithParties();
+  const [row] = await query.where(eq(invoices.id, id)).limit(1);
   return row ?? null;
 }
 
@@ -69,18 +109,15 @@ export async function getInvoice(id: number): Promise<Invoice | null> {
  */
 export async function findDuplicateInvoice(
   invoiceNumber: string,
-  sellerName: string,
+  sellerId: number,
   excludeId?: number,
-): Promise<Invoice | null> {
-  const rows = await getDb()
-    .select()
-    .from(invoices)
+): Promise<InvoiceWithParties | null> {
+  const { query } = invoicesWithParties();
+  const rows = await query
     .where(
       and(
         eq(invoices.invoiceNumber, invoiceNumber.trim()),
-        // `ilike` bez wieloznaczników działa jak porównanie bez względu na wielkość
-        // liter — ta sama firma bywa wpisana raz z dużych, raz z małych.
-        ilike(invoices.sellerName, escapeLikePattern(sellerName.trim())),
+        eq(invoices.sellerId, sellerId),
       ),
     )
     .limit(2);

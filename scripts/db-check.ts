@@ -7,6 +7,11 @@
  * chodzi wyłącznie o to, co robi z nimi prawdziwa baza.
  */
 import {
+  ContractorInUseError,
+  deleteContractor,
+  resolveContractor,
+} from "@/lib/contractors/service";
+import {
   findDuplicateInvoice,
   getInvoice,
   listInvoices,
@@ -70,13 +75,20 @@ async function main() {
   loadLocalEnv();
 
   // Kwoty z prawdziwej faktury 0350/2026, na której będzie testowany odczyt AI.
+  const seller = await resolveContractor({
+    name: 'P.H.U. "Pecet" Mariusz Szczęsny',
+    nip: "824-116-74-09",
+  });
+  const buyer = await resolveContractor({
+    name: "Gmina Miedzna",
+    nip: "8241723514",
+  });
+
   const created = await createInvoice({
     invoiceNumber: "TEST/0350/2026",
     issueDate: "2026-08-12",
-    sellerName: 'P.H.U. "Pecet" Mariusz Szczęsny',
-    sellerNip: "824-116-74-09",
-    buyerName: "Gmina Miedzna",
-    buyerNip: "8241723514",
+    sellerId: seller.id,
+    buyerId: buyer.id,
     grossAmount: "750,00",
     netAmount: "609,76",
     vatAmount: "140,24",
@@ -97,11 +109,14 @@ async function main() {
   check("data wystawienia", read.issueDate, "2026-08-12");
   check("NIP bez kresek", read.sellerNip, "8241167409");
 
-  const duplicate = await findDuplicateInvoice(
-    "TEST/0350/2026",
-    'p.h.u. "pecet" mariusz szczęsny',
-  );
-  check("duplikat rozpoznany bez względu na wielkość liter", duplicate?.id, read.id);
+  const sameSeller = await resolveContractor({
+    name: 'p.h.u. "pecet" mariusz szczęsny',
+    nip: "8241167409",
+  });
+  check("ten sam sprzedawca rozpoznany po NIP-ie", sameSeller.id, seller.id);
+
+  const duplicate = await findDuplicateInvoice("TEST/0350/2026", seller.id);
+  check("duplikat rozpoznany po numerze i sprzedawcy", duplicate?.id, read.id);
 
   const found = await listInvoices({ search: "Miedzna", from: "2026-08-01", to: "2026-08-31" });
   check(
@@ -115,6 +130,14 @@ async function main() {
   const removed = await deleteInvoice(read.id);
   check("faktura usunięta", removed?.id, read.id);
   check("po usunięciu nie ma jej w bazie", await getInvoice(read.id), null);
+
+  for (const party of [seller, buyer]) {
+    try {
+      await deleteContractor(party.id);
+    } catch (cause) {
+      if (!(cause instanceof ContractorInUseError)) throw cause;
+    }
+  }
 
   console.log();
   await checkBalance();
