@@ -26,7 +26,7 @@ Każda domena ma własny katalog w `lib/` i ten sam podział w środku:
 Tak wygląda `lib/invoices/`, `lib/settlements/` i `lib/ai-usage/`. Strony w `app/` czytają dane
 wprost z `repository.ts`, a formularze wołają `actions.ts`. Wspólne rzeczy: `lib/config.ts`
 (stawki i limity), `lib/forms/form-state.ts` (stan formularza i błędy pól), `lib/money.ts`,
-`lib/dates.ts`. Komponenty leżą w `components/<domena>/`, odczyt AI w
+`lib/dates.ts`, `lib/nip.ts`. Komponenty leżą w `components/<domena>/`, odczyt AI w
 `lib/ai/invoice-extraction/`.
 
 ## Uruchomienie lokalne

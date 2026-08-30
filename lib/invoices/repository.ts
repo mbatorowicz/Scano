@@ -5,6 +5,7 @@
  */
 import { and, desc, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
 
+import { isIsoDate } from "@/lib/dates";
 import { getDb } from "@/lib/db/index";
 import { invoices, type Invoice, type NewInvoice } from "@/lib/db/schema";
 
@@ -12,8 +13,6 @@ import type { InvoiceFilters } from "./filters";
 
 /** Kolumny, które ustawia aplikacja; `id` i `created_at` dokłada baza. */
 export type InvoiceRow = Omit<NewInvoice, "id" | "createdAt">;
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Znaki, które w `LIKE` znaczą „cokolwiek" — w tekście od użytkownika mają być zwykłymi znakami. */
 function escapeLikePattern(value: string): string {
@@ -23,10 +22,10 @@ function escapeLikePattern(value: string): string {
 function filterConditions(filters: InvoiceFilters): SQL | undefined {
   const conditions: SQL[] = [];
 
-  if (filters.from && ISO_DATE.test(filters.from)) {
+  if (isIsoDate(filters.from)) {
     conditions.push(gte(invoices.issueDate, filters.from));
   }
-  if (filters.to && ISO_DATE.test(filters.to)) {
+  if (isIsoDate(filters.to)) {
     conditions.push(lte(invoices.issueDate, filters.to));
   }
 

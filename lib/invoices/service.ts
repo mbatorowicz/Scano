@@ -11,6 +11,7 @@ import {
   optionalAmount,
   requireAmount,
 } from "@/lib/money";
+import { nipDigits } from "@/lib/nip";
 import { calculatePayout, normalizeCostAmount } from "@/lib/payout";
 
 import {
@@ -37,13 +38,6 @@ export type InvoiceInput = {
   costAmount?: string | null;
 };
 
-/** NIP zapisujemy bez kresek i spacji, żeby dwa zapisy tego samego numeru się nie rozjechały. */
-function normalizeNip(value: string | null | undefined): string | null {
-  if (typeof value !== "string") return null;
-  const digits = value.replace(/[^\d]/g, "");
-  return digits.length === 0 ? null : digits;
-}
-
 /**
  * Należność liczymy przy każdym zapisie od nowa — inaczej po poprawieniu kwoty
  * brutto albo ceny dla mnie w kolumnie zostałaby stara wartość.
@@ -61,9 +55,9 @@ function toRow(input: InvoiceInput, imagePathname: string | null): InvoiceRow {
     invoiceNumber: input.invoiceNumber.trim(),
     issueDate: input.issueDate,
     sellerName: input.sellerName.trim(),
-    sellerNip: normalizeNip(input.sellerNip),
+    sellerNip: nipDigits(input.sellerNip),
     buyerName: input.buyerName.trim(),
-    buyerNip: normalizeNip(input.buyerNip),
+    buyerNip: nipDigits(input.buyerNip),
     grossAmount,
     netAmount: optionalAmount(input.netAmount),
     vatAmount: optionalAmount(input.vatAmount),

@@ -5,6 +5,7 @@
  */
 import { isIsoDate } from "@/lib/dates";
 import { parseAmount, sumAmounts, toMinorUnits } from "@/lib/money";
+import { validNip } from "@/lib/nip";
 
 import type { RawExtraction } from "./output-schema";
 
@@ -35,9 +36,9 @@ export function normalize(raw: RawExtraction): ExtractedInvoice {
     invoiceNumber: text(raw.invoiceNumber),
     issueDate: isoDate(raw.issueDate),
     sellerName: text(raw.sellerName),
-    sellerNip: nip(raw.sellerNip),
+    sellerNip: validNip(raw.sellerNip),
     buyerName: text(raw.buyerName),
-    buyerNip: nip(raw.buyerNip),
+    buyerNip: validNip(raw.buyerNip),
     grossAmount: positive(grossAmount),
     netAmount: positive(netAmount),
     vatAmount: positive(vatAmount),
@@ -49,12 +50,6 @@ function text(value: string | null): string | null {
   if (!trimmed) return null;
   // Modele czasem zwracają dosłowne "null" albo "brak" zamiast pustej wartości.
   return /^(null|brak|nie\s?dotyczy|n\/?d)$/i.test(trimmed) ? null : trimmed;
-}
-
-function nip(value: string | null): string | null {
-  const digits = value?.replace(/\D/g, "") ?? "";
-  // Polski NIP ma 10 cyfr; cokolwiek innego to pomyłka w odczycie.
-  return digits.length === 10 ? digits : null;
 }
 
 function positive(value: string | null): string | null {

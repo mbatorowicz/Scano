@@ -3,7 +3,7 @@
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /** Prawdziwa data w zapisie ISO. `2026-02-30` pasuje do wzorca, ale nie istnieje. */
-export function isIsoDate(value: string | null | undefined): boolean {
+export function isIsoDate(value: string | null | undefined): value is string {
   if (typeof value !== "string") return false;
 
   const match = ISO_DATE.exec(value.trim());
@@ -42,6 +42,6 @@ export function startOfMonth(now = new Date()): Date {
 /** `2026-08-12` na `12.08.2026` — zapis, w jakim data stoi na fakturze. */
 export function formatDate(value: string | null | undefined): string {
   if (!isIsoDate(value)) return "—";
-  const [year, month, day] = (value as string).trim().split("-");
+  const [year, month, day] = value.trim().split("-");
   return `${day}.${month}.${year}`;
 }

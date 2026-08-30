@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isIsoDate } from "@/lib/dates";
 import { readFormValues } from "@/lib/forms/form-state";
 import { parseAmount } from "@/lib/money";
+import { NIP_LENGTH, nipDigits } from "@/lib/nip";
 
 import {
   INVOICE_FIELD_NAMES,
@@ -27,15 +28,14 @@ const requiredAmount = z
   .refine((value) => parseAmount(value) !== null, AMOUNT_MESSAGE)
   .transform((value) => parseAmount(value) as string);
 
-/** NIP zapisujemy jako same cyfry — wpisany z kreskami i bez ma być tym samym numerem. */
+/** Pusty NIP wolno zostawić, ale skoro ktoś go wpisał, musi być prawdziwy. */
 const nip = z
   .string()
-  .transform((value) => value.replace(/\D/g, ""))
+  .transform(nipDigits)
   .refine(
-    (digits) => digits.length === 0 || digits.length === 10,
+    (digits) => digits === null || digits.length === NIP_LENGTH,
     "NIP składa się z dziesięciu cyfr.",
-  )
-  .transform((digits) => (digits.length === 0 ? null : digits));
+  );
 
 export const invoiceFormSchema = z.object({
   invoiceNumber: text(64, "Podaj numer faktury."),
