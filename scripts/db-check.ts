@@ -2,19 +2,22 @@
  * Sprawdzenie warstwy bazy: zapisuje testową fakturę, odczytuje ją, porównuje
  * kwoty co do grosza i usuwa. Uruchamiane ręcznie (`npm run db:check`),
  * nie zostawia po sobie danych.
+ *
+ * Samo parsowanie kwot i wyliczanie należności sprawdza `npm test` — tutaj
+ * chodzi wyłącznie o to, co robi z nimi prawdziwa baza.
  */
 import {
-  createInvoice,
-  createSettlement,
-  deleteInvoice,
-  deleteSettlement,
   findDuplicateInvoice,
-  getBalance,
   getInvoice,
   listInvoices,
-} from "@/lib/db/queries";
-import { formatCurrency, parseAmount, sumAmounts } from "@/lib/money";
-import { calculatePayout } from "@/lib/payout";
+} from "@/lib/invoices/repository";
+import { createInvoice, deleteInvoice } from "@/lib/invoices/service";
+import { formatCurrency, sumAmounts } from "@/lib/money";
+import { getBalance } from "@/lib/settlements/repository";
+import {
+  createSettlement,
+  deleteSettlement,
+} from "@/lib/settlements/service";
 
 import { loadLocalEnv } from "./env";
 
@@ -24,34 +27,6 @@ function check(label: string, actual: unknown, expected: unknown) {
   const passed = actual === expected;
   if (!passed) failures.push(`${label}: jest ${actual}, powinno być ${expected}`);
   console.log(`${passed ? "OK  " : "BŁĄD"} ${label}: ${actual}`);
-}
-
-/** Kwoty przychodzą od Gemini i z formularza w różnych zapisach — to najbardziej kruchy kawałek. */
-function checkAmountParsing() {
-  check("750,00", parseAmount("750,00"), "750.00");
-  check("1 234,56 ze spacją", parseAmount("1 234,56"), "1234.56");
-  check("1.234,56 z kropką tysięcy", parseAmount("1.234,56"), "1234.56");
-  check("1 234,56 zł", parseAmount("1 234,56 zł"), "1234.56");
-  check("750.00 w zapisie AI", parseAmount("750.00"), "750.00");
-  check("1.234 to tysiące", parseAmount("1.234"), "1234.00");
-  check("zaokrąglenie groszy w górę", parseAmount("10,005"), "10.01");
-  check("kwota bez części dziesiętnej", parseAmount("750"), "750.00");
-  check("tekst nie jest kwotą", parseAmount("brak danych"), null);
-  check("pusty tekst", parseAmount(""), null);
-  check("suma nie gubi groszy", sumAmounts(["0.01", "0.02", "750.00"]), "750.03");
-  console.log();
-}
-
-/** Kwoty z arkusza, który aplikacja ma zastąpić — muszą wyjść co do grosza. */
-function checkPayout() {
-  check("750,00 przy cenie 700,00", calculatePayout("750.00", "700.00"), "34.16");
-  check("1107,00 bez własnego kosztu", calculatePayout("1107.00", "0.00"), "756.30");
-  check("735,00 przy cenie 635,00", calculatePayout("735.00", "635.00"), "68.32");
-  check("330,00 przy cenie 290,00", calculatePayout("330.00", "290.00"), "27.33");
-  check("1640,00 przy cenie 1550,00", calculatePayout("1640.00", "1550.00"), "61.49");
-  check("puste pole liczy się jak zero", calculatePayout("1107.00", ""), "756.30");
-  check("cena wyższa niż brutto to strata", calculatePayout("700.00", "750.00"), "-34.16");
-  console.log();
 }
 
 /**
@@ -93,9 +68,6 @@ async function checkBalance() {
 
 async function main() {
   loadLocalEnv();
-
-  checkAmountParsing();
-  checkPayout();
 
   // Kwoty z prawdziwej faktury 0350/2026, na której będzie testowany odczyt AI.
   const created = await createInvoice({

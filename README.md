@@ -9,7 +9,25 @@ i widzisz, ile z niej zostało.
 Produkcja: https://scano-beta.vercel.app — chroniona jednym hasłem, dodaje się do ekranu
 głównego jako PWA.
 
-Opis architektury, powody podjętych decyzji i historia etapów siedzą w [docs/PLAN.md](docs/PLAN.md).
+Powody podjętych decyzji i historia etapów siedzą w [docs/PLAN.md](docs/PLAN.md) — opisują też
+wcześniejszy układ plików, sprzed podziału na moduły domenowe.
+
+## Struktura kodu
+
+Każda domena ma własny katalog w `lib/` i ten sam podział w środku:
+
+| plik | odpowiada za | czego nie zna |
+| --- | --- | --- |
+| `repository.ts` | zapytania Drizzle | reguł biznesowych |
+| `service.ts` | reguły: kwoty, należność, NIP | `FormData` i adresów |
+| `actions.ts` | sesja, walidacja, `revalidatePath` | Drizzle |
+| `form.ts`, `schema.ts` | kontrakt formularza wspólny dla klienta i serwera | bazy |
+
+Tak wygląda `lib/invoices/`, `lib/settlements/` i `lib/ai-usage/`. Strony w `app/` czytają dane
+wprost z `repository.ts`, a formularze wołają `actions.ts`. Wspólne rzeczy: `lib/config.ts`
+(stawki i limity), `lib/forms/form-state.ts` (stan formularza i błędy pól), `lib/money.ts`,
+`lib/dates.ts`. Komponenty leżą w `components/<domena>/`, odczyt AI w
+`lib/ai/invoice-extraction/`.
 
 ## Uruchomienie lokalne
 
@@ -58,10 +76,18 @@ jej wpisu w `lib/db/migrations/meta/_journal.json` — musi być większe niż w
 
 ## Sprawdzenia
 
-Uruchamiane ręcznie, nie ma tu frameworka testowego:
+Logikę czystą — parsowanie kwot, wyliczanie należności, daty i schematy walidacji — sprawdza
+Vitest. Nie potrzebuje sekretów ani uruchomionego serwera:
 
 ```bash
-npm run db:check         # kwoty, należności, saldo i zapytania — pełny obieg przez bazę
+npm test                 # jednorazowo
+npm run test:watch       # w trakcie pracy
+```
+
+Reszta to skrypty uruchamiane ręcznie, bo dotykają prawdziwej bazy albo modelu:
+
+```bash
+npm run db:check         # zapis, odczyt i saldo — pełny obieg przez bazę
 npm run form:check       # droga od danych z formularza do wiersza w bazie
 npm run scan:check -- ".\samples\faktura-0350.png"   # odczyt AI, wymaga npm run dev
 npm run ai:cost          # porównanie ustawień Gemini: tokeny, czas, trafność
@@ -74,8 +100,8 @@ Zdjęcia testowe w `samples/` są poza repozytorium — zawierają prawdziwe dan
 
 ## Sprzątanie magazynu zdjęć
 
-Zdjęcie trafia do Bloba już przy odczycie, zanim faktura zostanie zatwierdzona, więc porzucone
-skany zostawiają pliki bez właściciela:
+Zdjęcie trafia do Bloba zaraz po udanym odczycie, zanim faktura zostanie zatwierdzona, więc
+porzucone skany zostawiają pliki bez właściciela:
 
 ```bash
 npm run blob:clean              # wypisuje osierocone zdjęcia, niczego nie usuwa

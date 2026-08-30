@@ -2,18 +2,17 @@
  * Sprawdzenie drogi z formularza do bazy: `FormData` w takim zapisie, w jakim
  * przychodzi z przeglądarki, przez walidację Zod aż do wiersza w Neonie.
  * Uruchamiane ręcznie, nie zostawia po sobie danych.
+ *
+ * Samą walidację, bez bazy, sprawdza `npm test` — tutaj chodzi o to, czy
+ * przepuszczone przez nią dane trafiają do Neona w takiej postaci, jakiej
+ * oczekują listy i eksport.
  */
+import { findDuplicateInvoice, getInvoice } from "@/lib/invoices/repository";
 import {
-  createInvoice,
-  deleteInvoice,
-  findDuplicateInvoice,
-  getInvoice,
-} from "@/lib/db/queries";
-import {
-  invoiceFieldErrors,
   invoiceFormSchema,
   readInvoiceFormValues,
-} from "@/lib/invoice-schema";
+} from "@/lib/invoices/schema";
+import { createInvoice, deleteInvoice } from "@/lib/invoices/service";
 
 import { loadLocalEnv } from "./env";
 
@@ -44,57 +43,14 @@ const FILLED = {
   costAmount: "700,00",
 };
 
-function checkValidation() {
+async function main() {
+  loadLocalEnv();
+
   const parsed = invoiceFormSchema.safeParse(readInvoiceFormValues(form(FILLED)));
   if (!parsed.success) {
     failures.push(`Poprawny formularz odrzucony: ${parsed.error.message}`);
     return;
   }
-
-  check("numer bez spacji na końcach", parsed.data.invoiceNumber, "TEST-FORM/0350/2026");
-  check("brutto z symbolem waluty i przecinkiem", parsed.data.grossAmount, "750.00");
-  check("NIP bez kresek", parsed.data.sellerNip, "8241167409");
-  check("netto z przecinkiem", parsed.data.netAmount, "609.76");
-  check("cena dla mnie z przecinkiem", parsed.data.costAmount, "700.00");
-
-  const empty = invoiceFormSchema.safeParse(
-    readInvoiceFormValues(form({ netAmount: "", vatAmount: "", costAmount: "" })),
-  );
-  check("pusty formularz odrzucony", empty.success, false);
-  if (!empty.success) {
-    const errors = invoiceFieldErrors(empty.error);
-    check("brak numeru zgłoszony", errors.invoiceNumber, "Podaj numer faktury.");
-    check("brak daty zgłoszony", errors.issueDate, "Podaj datę wystawienia.");
-    check("brak brutto zgłoszony", errors.grossAmount, "Podaj wartość brutto.");
-    check("puste netto bez błędu", errors.netAmount, undefined);
-    check("pusta cena dla mnie bez błędu", errors.costAmount, undefined);
-  }
-
-  const bad = invoiceFormSchema.safeParse(
-    readInvoiceFormValues(form({ ...FILLED, grossAmount: "mniej więcej tysiąc" })),
-  );
-  check("nieczytelna kwota odrzucona", bad.success, false);
-
-  const badDate = invoiceFormSchema.safeParse(
-    readInvoiceFormValues(form({ ...FILLED, issueDate: "2026-02-30" })),
-  );
-  check("nieistniejąca data odrzucona", badDate.success, false);
-
-  const badNip = invoiceFormSchema.safeParse(
-    readInvoiceFormValues(form({ ...FILLED, buyerNip: "824172" })),
-  );
-  check("za krótki NIP odrzucony", badNip.success, false);
-
-  console.log();
-}
-
-async function main() {
-  loadLocalEnv();
-
-  checkValidation();
-
-  const parsed = invoiceFormSchema.safeParse(readInvoiceFormValues(form(FILLED)));
-  if (!parsed.success) return;
 
   const created = await createInvoice({
     ...parsed.data,

@@ -1,43 +1,37 @@
 "use server";
 
-import { del } from "@vercel/blob";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { isInvoiceBlobPathname } from "@/lib/blob";
 import { formatDate } from "@/lib/dates";
 import {
-  createInvoice,
-  deleteInvoice,
-  findDuplicateInvoice,
-  updateInvoice,
-  type InvoiceInput,
-} from "@/lib/db/queries";
+  failedFormState,
+  invalidFormState,
+  readEntityId,
+} from "@/lib/forms/form-state";
+import { formatCurrency } from "@/lib/money";
+import { hasValidSession } from "@/lib/session";
+
 import {
   DUPLICATE_CONFIRM_FIELD,
   DUPLICATE_CONFIRMED_VALUE,
   IMAGE_PATHNAME_FIELD,
   INVOICE_ID_FIELD,
+  type InvoiceFieldName,
   type InvoiceFormState,
-} from "@/lib/invoice-form";
+} from "./form";
+import { findDuplicateInvoice } from "./repository";
+import { invoiceFormSchema, readInvoiceFormValues } from "./schema";
 import {
-  invoiceFieldErrors,
-  invoiceFormSchema,
-  readInvoiceFormValues,
-} from "@/lib/invoice-schema";
-import { formatCurrency } from "@/lib/money";
-import { hasValidSession } from "@/lib/session";
+  createInvoice,
+  deleteInvoice,
+  updateInvoice,
+  type InvoiceInput,
+} from "./service";
 
 function failure(message: string): InvoiceFormState {
-  return { status: "error", message, fieldErrors: {}, invoiceId: null };
-}
-
-/** Id edytowanej faktury; jego brak znaczy, że zapisujemy nową. */
-function readId(formData: FormData): number | null {
-  const value = formData.get(INVOICE_ID_FIELD);
-  if (typeof value !== "string" || value.trim() === "") return null;
-  const id = Number(value);
-  return Number.isInteger(id) && id > 0 ? id : null;
+  return { ...failedFormState<InvoiceFieldName>(message), invoiceId: null };
 }
 
 /**
@@ -63,14 +57,13 @@ export async function saveInvoice(
   const parsed = invoiceFormSchema.safeParse(readInvoiceFormValues(formData));
   if (!parsed.success) {
     return {
-      status: "invalid",
-      message: "Popraw zaznaczone pola i spróbuj jeszcze raz.",
-      fieldErrors: invoiceFieldErrors(parsed.error),
+      ...invalidFormState<InvoiceFieldName>(parsed.error),
       invoiceId: null,
     };
   }
 
-  const id = readId(formData);
+  /** Brak identyfikatora znaczy, że zapisujemy nową fakturę. */
+  const id = readEntityId(formData, INVOICE_ID_FIELD);
   const confirmed =
     formData.get(DUPLICATE_CONFIRM_FIELD) === DUPLICATE_CONFIRMED_VALUE;
 
@@ -96,7 +89,8 @@ export async function saveInvoice(
   };
 
   try {
-    const saved = id === null ? await createInvoice(input) : await updateInvoice(id, input);
+    const saved =
+      id === null ? await createInvoice(input) : await updateInvoice(id, input);
 
     if (saved === null) {
       return failure("Nie znaleziono faktury do zapisania. Odśwież stronę.");
@@ -117,21 +111,22 @@ export async function saveInvoice(
   }
 }
 
-/** Usunięcie faktury razem ze zdjęciem — trzymanie go bez wiersza nie ma sensu. */
+/**
+ * Usuwa fakturę razem ze zdjęciem. Formularz usuwania nie ma gdzie pokazać
+ * błędu — po udanym usunięciu strona faktury przestaje istnieć — więc awarie
+ * lecą do granicy błędu segmentu zamiast kończyć się cichym powrotem.
+ */
 export async function removeInvoice(formData: FormData): Promise<void> {
   if (!(await hasValidSession())) redirect("/login");
 
-  const id = readId(formData);
-  if (id === null) return;
-
-  const removed = await deleteInvoice(id);
-
-  if (removed?.imagePathname) {
-    await del(removed.imagePathname).catch((cause) => {
-      // Wiersza już nie ma, więc osierocone zdjęcie to najwyżej zajęte miejsce.
-      console.error("Nie udało się usunąć zdjęcia faktury", cause);
-    });
+  const id = readEntityId(formData, INVOICE_ID_FIELD);
+  if (id === null) {
+    throw new Error("Formularz usuwania przyszedł bez numeru faktury.");
   }
+
+  // Wiersza może już nie być, gdy tę samą fakturę usunięto w drugiej karcie.
+  // Skutek jest ten sam, o który prosił użytkownik, więc to nie jest błąd.
+  await deleteInvoice(id);
 
   revalidatePath("/");
   redirect("/");

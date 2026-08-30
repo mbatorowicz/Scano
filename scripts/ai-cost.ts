@@ -15,20 +15,16 @@ import { basename, extname } from "node:path";
 
 import {
   extractInvoice,
+  EXTRACTION_MODEL,
+  FALLBACK_MODEL,
   InvoiceScanError,
   type ExtractedInvoice,
   type ExtractionSettings,
   type ExtractionUsage,
-} from "@/lib/ai/extract-invoice";
+} from "@/lib/ai/invoice-extraction";
+import { imageTypeForExtension } from "@/lib/blob";
 
 import { loadLocalEnv } from "./env";
-
-const MEDIA_TYPES: Record<string, string> = {
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-};
 
 /**
  * Cennik Gemini 3 Flash w dolarach za milion tokenów. Myślenie liczy się jak
@@ -42,13 +38,13 @@ const OUTPUT_PER_MILLION = 3;
  * potrafi zjeść cały ten limit. Stąd długa przerwa między wariantami i jeszcze
  * dłuższa po odbiciu się od limitu.
  */
-const PRZERWA_MS = 75_000;
-const PRZERWA_PO_LIMICIE_MS = 120_000;
+const PAUSE_MS = 75_000;
+const PAUSE_AFTER_LIMIT_MS = 120_000;
 
-const FLASH = "gemini-3.5-flash";
-const FLASH_LITE = "gemini-3.5-flash-lite";
+const FLASH = EXTRACTION_MODEL;
+const FLASH_LITE = FALLBACK_MODEL;
 
-const WARIANTY: ExtractionSettings[] = [
+const VARIANTS: ExtractionSettings[] = [
   { model: FLASH, mediaResolution: "MEDIA_RESOLUTION_HIGH", thinkingLevel: "high" },
   { model: FLASH, mediaResolution: "MEDIA_RESOLUTION_HIGH", thinkingLevel: "low" },
   { model: FLASH, mediaResolution: "MEDIA_RESOLUTION_MEDIUM", thinkingLevel: "low" },
@@ -76,12 +72,12 @@ const WARIANTY: ExtractionSettings[] = [
   },
 ];
 
-function nazwa(settings: ExtractionSettings): string {
+function variantLabel(settings: ExtractionSettings): string {
   const resolution = settings.mediaResolution.replace("MEDIA_RESOLUTION_", "");
   return `${settings.model}, zdjecie ${resolution}, myslenie ${settings.thinkingLevel}`;
 }
 
-const POLA = [
+const FIELDS = [
   "invoiceNumber",
   "issueDate",
   "sellerName",
@@ -93,60 +89,64 @@ const POLA = [
   "vatAmount",
 ] as const;
 
-function koszt(usage: ExtractionUsage): string {
-  const dolary =
+function cost(usage: ExtractionUsage): string {
+  const dollars =
     (usage.inputTokens * INPUT_PER_MILLION +
       usage.outputTokens * OUTPUT_PER_MILLION) /
     1_000_000;
-  return `${(dolary * 1000).toFixed(2)} centa / 1000 odczytow`;
+  return `${(dollars * 1000).toFixed(2)} centa / 1000 odczytow`;
 }
 
-function porownanie(
+function comparison(
   data: ExtractedInvoice,
-  oczekiwane: Partial<ExtractedInvoice> | null,
+  expected: Partial<ExtractedInvoice> | null,
 ): string[] {
-  if (oczekiwane === null) {
-    return POLA.map((pole) => `${pole}: ${data[pole] ?? "—"}`);
+  if (expected === null) {
+    return FIELDS.map((field) => `${field}: ${data[field] ?? "—"}`);
   }
 
-  return POLA.filter((pole) => pole in oczekiwane).map((pole) => {
-    const odczyt = data[pole] ?? "—";
-    const wzorzec = oczekiwane[pole] ?? "—";
-    return odczyt === wzorzec ? `${pole}: ${odczyt}` : `${pole}: ${odczyt} (≠ ${wzorzec})`;
+  return FIELDS.filter((field) => field in expected).map((field) => {
+    const actual = data[field] ?? "—";
+    const wanted = expected[field] ?? "—";
+    return actual === wanted ? `${field}: ${actual}` : `${field}: ${actual} (≠ ${wanted})`;
   });
 }
 
-function zgodnosc(
+function accuracy(
   data: ExtractedInvoice,
-  oczekiwane: Partial<ExtractedInvoice> | null,
+  expected: Partial<ExtractedInvoice> | null,
 ): string {
-  if (oczekiwane === null) return "";
-  const sprawdzane = POLA.filter((pole) => pole in oczekiwane);
-  const trafione = sprawdzane.filter((pole) => (data[pole] ?? "—") === (oczekiwane[pole] ?? "—"));
-  return `, poprawnych pol ${trafione.length}/${sprawdzane.length}`;
+  if (expected === null) return "";
+  const checked = FIELDS.filter((field) => field in expected);
+  const matched = checked.filter(
+    (field) => (data[field] ?? "—") === (expected[field] ?? "—"),
+  );
+  return `, poprawnych pol ${matched.length}/${checked.length}`;
 }
 
-const czekaj = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
   loadLocalEnv();
 
-  const argumenty = process.argv.slice(2);
-  const wybranyModel = argumenty
+  const args = process.argv.slice(2);
+  const chosenModel = args
     .find((argument) => argument.startsWith("--model="))
     ?.slice("--model=".length);
-  const sciezki = argumenty.filter((argument) => !argument.startsWith("--"));
+  const paths = args.filter((argument) => !argument.startsWith("--"));
 
-  const imagePath = sciezki[0];
+  const imagePath = paths[0];
   if (!imagePath) {
     throw new Error('Podaj ścieżkę do zdjęcia: npm run ai:cost -- "C:\\faktura.jpg"');
   }
 
-  const mediaType = MEDIA_TYPES[extname(imagePath).toLowerCase()];
-  if (!mediaType) throw new Error(`Nieobsługiwany format: ${extname(imagePath)}`);
+  const mediaType = imageTypeForExtension(extname(imagePath));
+  if (mediaType === null) {
+    throw new Error(`Nieobsługiwany format: ${extname(imagePath)}`);
+  }
 
-  const expectedPath = sciezki[1];
-  const oczekiwane: Partial<ExtractedInvoice> | null = expectedPath
+  const expectedPath = paths[1];
+  const expected: Partial<ExtractedInvoice> | null = expectedPath
     ? JSON.parse(await readFile(expectedPath, "utf8"))
     : null;
 
@@ -155,38 +155,38 @@ async function main() {
 
   // Dzienny limit darmowego planu jest liczony osobno dla każdego modelu,
   // więc czasem chcemy zmierzyć tylko ten, którego pula jeszcze została.
-  const doZmierzenia = wybranyModel
-    ? WARIANTY.filter((wariant) => wariant.model === wybranyModel)
-    : WARIANTY;
+  const toMeasure = chosenModel
+    ? VARIANTS.filter((variant) => variant.model === chosenModel)
+    : VARIANTS;
 
-  for (const [numer, wariant] of doZmierzenia.entries()) {
-    if (numer > 0) await czekaj(PRZERWA_MS);
+  for (const [index, variant] of toMeasure.entries()) {
+    if (index > 0) await wait(PAUSE_MS);
 
     // Dwa ponowienia: odbicie się od limitu na minutę nie mówi nic o wariancie.
-    for (let proba = 1; proba <= 3; proba += 1) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
       const startedAt = Date.now();
       try {
-        const { data, usage } = await extractInvoice(bytes, mediaType, wariant);
-        const sekundy = ((Date.now() - startedAt) / 1000).toFixed(1);
+        const { data, usage } = await extractInvoice(bytes, mediaType, variant);
+        const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
 
-        console.log(nazwa(wariant));
+        console.log(variantLabel(variant));
         console.log(
           `  wejscie ${usage.inputTokens}, wyjscie ${usage.outputTokens} (myslenie ${usage.reasoningTokens}), razem ${usage.totalTokens}`,
         );
-        console.log(`  ${koszt(usage)}, ${sekundy} s${zgodnosc(data, oczekiwane)}`);
-        for (const linia of porownanie(data, oczekiwane)) console.log(`    ${linia}`);
+        console.log(`  ${cost(usage)}, ${seconds} s${accuracy(data, expected)}`);
+        for (const line of comparison(data, expected)) console.log(`    ${line}`);
         console.log("");
         break;
       } catch (error) {
-        const limit = error instanceof InvoiceScanError && error.status === 429;
-        if (limit && proba < 3) {
-          console.log(`${nazwa(wariant)}\n  limit na minutę, czekam...`);
-          await czekaj(PRZERWA_PO_LIMICIE_MS);
+        const rateLimited = error instanceof InvoiceScanError && error.status === 429;
+        if (rateLimited && attempt < 3) {
+          console.log(`${variantLabel(variant)}\n  limit na minutę, czekam...`);
+          await wait(PAUSE_AFTER_LIMIT_MS);
           continue;
         }
 
-        const powod = error instanceof Error ? error.message : String(error);
-        console.log(`${nazwa(wariant)}\n  BŁĄD: ${powod}\n`);
+        const reason = error instanceof Error ? error.message : String(error);
+        console.log(`${variantLabel(variant)}\n  BŁĄD: ${reason}\n`);
         break;
       }
     }

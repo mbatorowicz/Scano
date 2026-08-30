@@ -9,16 +9,10 @@ import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 
 import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
+import { imageTypeForExtension } from "@/lib/blob";
+import { SCAN_PHOTO_FIELD } from "@/lib/scan/upload";
 
 import { loadLocalEnv } from "./env";
-
-const MEDIA_TYPES: Record<string, string> = {
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".heic": "image/heic",
-};
 
 async function main() {
   loadLocalEnv();
@@ -30,8 +24,8 @@ async function main() {
     );
   }
 
-  const mediaType = MEDIA_TYPES[extname(imagePath).toLowerCase()];
-  if (!mediaType) {
+  const mediaType = imageTypeForExtension(extname(imagePath));
+  if (mediaType === null) {
     throw new Error(`Nieobsługiwany format pliku: ${extname(imagePath)}`);
   }
 
@@ -43,7 +37,7 @@ async function main() {
 
   const form = new FormData();
   form.set(
-    "zdjecie",
+    SCAN_PHOTO_FIELD,
     new File([new Uint8Array(bytes)], basename(imagePath), { type: mediaType }),
   );
 

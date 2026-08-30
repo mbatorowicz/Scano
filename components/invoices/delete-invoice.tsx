@@ -14,44 +14,36 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { formatDate } from "@/lib/dates";
-import { formatCurrency } from "@/lib/money";
-import { removeSettlement } from "@/lib/settlement-actions";
-import { SETTLEMENT_ID_FIELD } from "@/lib/settlement-form";
+import { removeInvoice } from "@/lib/invoices/actions";
+import { INVOICE_ID_FIELD } from "@/lib/invoices/form";
 
-export function DeleteSettlement({
+export function DeleteInvoice({
   id,
-  settledOn,
-  amount,
+  invoiceNumber,
 }: {
   id: number;
-  settledOn: string;
-  amount: string;
+  invoiceNumber: string;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-11 shrink-0 text-muted-foreground"
-          aria-label={`Usuń wypłatę ${formatCurrency(amount)} z ${formatDate(settledOn)}`}
-        >
+        <Button variant="destructive" className="h-11 text-base">
           <Trash2 className="size-5" />
+          Usuń
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Usunąć wypłatę {formatCurrency(amount)}?</DialogTitle>
+          <DialogTitle>Usunąć fakturę {invoiceNumber}?</DialogTitle>
           <DialogDescription>
-            Wypłata z {formatDate(settledOn)} zniknie z historii, a saldo urośnie
-            o tę kwotę. Tego nie da się cofnąć.
+            Zniknie z listy razem ze zdjęciem, a sumy przeliczą się bez niej.
+            Tego nie da się cofnąć.
           </DialogDescription>
         </DialogHeader>
-        <form action={removeSettlement}>
-          <input type="hidden" name={SETTLEMENT_ID_FIELD} value={id} />
+        <form action={removeInvoice}>
+          <input type="hidden" name={INVOICE_ID_FIELD} value={id} />
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" className="h-11 text-base">
@@ -60,7 +52,7 @@ export function DeleteSettlement({
             </DialogClose>
             <Button type="submit" variant="destructive" className="h-11 text-base">
               <Trash2 className="size-5" />
-              Usuń wypłatę
+              Usuń fakturę
             </Button>
           </DialogFooter>
         </form>

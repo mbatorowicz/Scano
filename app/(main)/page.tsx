@@ -1,18 +1,20 @@
 import Link from "next/link";
 import { Camera, ChevronRight, Download } from "lucide-react";
 
-import { InvoiceFilters } from "@/components/invoice-filters";
-import { InvoiceTable } from "@/components/invoice-table";
+import { InvoiceFilters } from "@/components/invoices/invoice-filters";
+import { InvoiceTable } from "@/components/invoices/invoice-table";
+import { SummaryStat } from "@/components/summary-stat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getBalance, listInvoices } from "@/lib/db/queries";
 import {
   hasAnyFilter,
   readFilterValues,
   toInvoiceFilters,
   toQueryString,
-} from "@/lib/invoice-filters";
+} from "@/lib/invoices/filters";
+import { listInvoices } from "@/lib/invoices/repository";
 import { formatCurrency, sumAmounts, toMinorUnits } from "@/lib/money";
+import { getBalance } from "@/lib/settlements/repository";
 
 export default async function InvoicesPage(props: PageProps<"/">) {
   const values = readFilterValues(await props.searchParams);
@@ -90,10 +92,16 @@ export default async function InvoicesPage(props: PageProps<"/">) {
         <>
           <Card>
             <CardContent className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4">
-              <Summary label="Faktur" value={String(invoices.length)} />
-              <Summary label="Suma zakupów" value={formatCurrency(costTotal)} />
-              <Summary label="Suma sprzedaży" value={formatCurrency(grossTotal)} />
-              <Summary label="Dla mnie" value={formatCurrency(payoutTotal)} />
+              <SummaryStat label="Faktur" value={String(invoices.length)} />
+              <SummaryStat
+                label="Suma zakupów"
+                value={formatCurrency(costTotal)}
+              />
+              <SummaryStat
+                label="Suma sprzedaży"
+                value={formatCurrency(grossTotal)}
+              />
+              <SummaryStat label="Dla mnie" value={formatCurrency(payoutTotal)} />
             </CardContent>
           </Card>
 
@@ -110,15 +118,6 @@ export default async function InvoicesPage(props: PageProps<"/">) {
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium">{value}</p>
     </div>
   );
 }

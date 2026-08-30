@@ -1,14 +1,12 @@
+import { INCOME_TAX_PERCENT, VAT_PERCENT } from "@/lib/config";
 import { minorUnitsToDecimal, toMinorUnits } from "@/lib/money";
-
-export const VAT_PERCENT = 23;
-export const INCOME_TAX_PERCENT = 19;
 
 /**
  * Z marży schodzi najpierw VAT (1,23), potem podatek dochodowy (1,19), czyli
  * razem 1,4637. Trzymamy to jako jeden dzielnik w dziesięciotysięcznych, żeby
  * nie zaokrąglać dwa razy — arkusz też liczy jednym przejściem.
  */
-const DIVISOR = 14_637n;
+const DIVISOR = BigInt((100 + VAT_PERCENT) * (100 + INCOME_TAX_PERCENT));
 
 /**
  * Należność dla mnie: marża między brutto z faktury a ceną, jaką sam zapłaciłem,

@@ -11,7 +11,7 @@ import {
   TO_PARAM,
   hasAnyFilter,
   type FilterValues,
-} from "@/lib/invoice-filters";
+} from "@/lib/invoices/filters";
 
 /**
  * Zwykły formularz `GET`: przeglądarka sama przepisuje pola do adresu, więc

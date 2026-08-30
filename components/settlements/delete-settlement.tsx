@@ -14,36 +14,44 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { removeInvoice } from "@/lib/invoice-actions";
-import { INVOICE_ID_FIELD } from "@/lib/invoice-form";
+import { formatDate } from "@/lib/dates";
+import { formatCurrency } from "@/lib/money";
+import { removeSettlement } from "@/lib/settlements/actions";
+import { SETTLEMENT_ID_FIELD } from "@/lib/settlements/form";
 
-export function DeleteInvoice({
+export function DeleteSettlement({
   id,
-  invoiceNumber,
+  settledOn,
+  amount,
 }: {
   id: number;
-  invoiceNumber: string;
+  settledOn: string;
+  amount: string;
 }) {
   const [open, setOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="destructive" className="h-11 text-base">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-11 shrink-0 text-muted-foreground"
+          aria-label={`Usuń wypłatę ${formatCurrency(amount)} z ${formatDate(settledOn)}`}
+        >
           <Trash2 className="size-5" />
-          Usuń
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Usunąć fakturę {invoiceNumber}?</DialogTitle>
+          <DialogTitle>Usunąć wypłatę {formatCurrency(amount)}?</DialogTitle>
           <DialogDescription>
-            Zniknie z listy razem ze zdjęciem, a sumy przeliczą się bez niej.
-            Tego nie da się cofnąć.
+            Wypłata z {formatDate(settledOn)} zniknie z historii, a saldo urośnie
+            o tę kwotę. Tego nie da się cofnąć.
           </DialogDescription>
         </DialogHeader>
-        <form action={removeInvoice}>
-          <input type="hidden" name={INVOICE_ID_FIELD} value={id} />
+        <form action={removeSettlement}>
+          <input type="hidden" name={SETTLEMENT_ID_FIELD} value={id} />
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" className="h-11 text-base">
@@ -52,7 +60,7 @@ export function DeleteInvoice({
             </DialogClose>
             <Button type="submit" variant="destructive" className="h-11 text-base">
               <Trash2 className="size-5" />
-              Usuń fakturę
+              Usuń wypłatę
             </Button>
           </DialogFooter>
         </form>

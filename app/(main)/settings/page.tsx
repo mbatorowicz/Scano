@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { LogOut } from "lucide-react";
 
+import { SummaryStat } from "@/components/summary-stat";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,8 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { FREE_TIER_DAILY_LIMIT } from "@/lib/ai/extract-invoice";
-import { getAiUsageByModel, getAiUsageSummary } from "@/lib/db/queries";
+import { getMonthlyAiUsage, getTodayModelUsage } from "@/lib/ai-usage/service";
+import { FREE_TIER_DAILY_LIMIT } from "@/lib/config";
 
 import { logout } from "./actions";
 
@@ -18,20 +19,13 @@ export const metadata: Metadata = {
   title: "Ustawienia",
 };
 
-function startOfMonth(now = new Date()): Date {
-  return new Date(now.getFullYear(), now.getMonth(), 1);
-}
-
-/** Limit odczytów zeruje się co dobę, więc liczymy od północy czasu urządzenia. */
-function startOfDay(now = new Date()): Date {
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-const liczba = new Intl.NumberFormat("pl-PL");
+const numberFormat = new Intl.NumberFormat("pl-PL");
 
 export default async function SettingsPage() {
-  const usage = await getAiUsageSummary(startOfMonth());
-  const today = await getAiUsageByModel(startOfDay());
+  const [usage, today] = await Promise.all([
+    getMonthlyAiUsage(),
+    getTodayModelUsage(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -64,7 +58,7 @@ export default async function SettingsPage() {
                   <li key={row.model} className="flex justify-between gap-2">
                     <span className="truncate text-muted-foreground">{row.model}</span>
                     <span className="shrink-0 font-medium">
-                      {row.scans} / {FREE_TIER_DAILY_LIMIT}
+                      {row.scans} / {row.limit}
                     </span>
                   </li>
                 ))}
@@ -76,11 +70,20 @@ export default async function SettingsPage() {
             <div className="space-y-2 border-t pt-4">
               <p className="text-sm font-medium">W tym miesiącu</p>
               <dl className="grid grid-cols-3 gap-2 text-center">
-                <Usage label="Odczytów" value={liczba.format(usage.scans)} />
-                <Usage label="Tokenów" value={liczba.format(usage.totalTokens)} />
-                <Usage
+                <SummaryStat
+                  variant="definition"
+                  label="Odczytów"
+                  value={numberFormat.format(usage.scans)}
+                />
+                <SummaryStat
+                  variant="definition"
+                  label="Tokenów"
+                  value={numberFormat.format(usage.totalTokens)}
+                />
+                <SummaryStat
+                  variant="definition"
                   label="Średnio na odczyt"
-                  value={liczba.format(usage.averageTokens)}
+                  value={numberFormat.format(usage.averageTokens)}
                 />
               </dl>
             </div>
@@ -104,15 +107,6 @@ export default async function SettingsPage() {
           </form>
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function Usage({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="space-y-1">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="font-medium">{value}</dd>
     </div>
   );
 }

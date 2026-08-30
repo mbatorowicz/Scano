@@ -3,19 +3,28 @@
  * cofnąć i wysłać komuś linkiem. Te same nazwy parametrów czyta strona listy
  * i eksport CSV, dlatego stoją w jednym miejscu.
  */
-import type { InvoiceFilters } from "@/lib/db/queries";
 
+/** Nazwy parametrów są polskie, bo adres widzi użytkownik. */
 export const FROM_PARAM = "od";
 export const TO_PARAM = "do";
 export const SEARCH_PARAM = "szukaj";
 
+/** Zakres wyszukiwania w postaci, jakiej oczekuje warstwa zapytań. */
+export type InvoiceFilters = {
+  /** Początek zakresu dat wystawienia, ISO. */
+  from?: string | null;
+  /** Koniec zakresu dat wystawienia, ISO. */
+  to?: string | null;
+  /** Szukanie po numerze faktury albo nazwie któregokolwiek kontrahenta. */
+  search?: string | null;
+};
+
+/** Te same filtry w postaci, jakiej oczekują pola formularza: zawsze stringi. */
 export type FilterValues = {
   from: string;
   to: string;
   search: string;
 };
-
-export const EMPTY_FILTER_VALUES: FilterValues = { from: "", to: "", search: "" };
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
 

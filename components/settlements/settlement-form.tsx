@@ -1,26 +1,47 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef } from "react";
-import { LoaderCircle, Plus } from "lucide-react";
+import { LoaderCircle, Plus, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { QUICK_SETTLEMENT_AMOUNTS } from "@/lib/config";
 import { todayIso } from "@/lib/dates";
 import { formatAmount } from "@/lib/money";
-import { saveSettlement } from "@/lib/settlement-actions";
+import { saveSettlement } from "@/lib/settlements/actions";
 import {
+  EMPTY_SETTLEMENT_FORM_VALUES,
   INITIAL_SETTLEMENT_FORM_STATE,
-  QUICK_AMOUNTS,
-} from "@/lib/settlement-form";
+  SETTLEMENT_ID_FIELD,
+  type SettlementFormValues,
+} from "@/lib/settlements/form";
 
 /**
+ * Ten sam formularz dodaje wypłatę i poprawia zapisaną — różnicę robi
+ * `settlementId`, dokładnie tak jak w formularzu faktury.
+ *
  * Pola są niekontrolowane: po odrzuceniu przez walidację wpisane wartości mają
  * zostać na miejscu, a przyciski stałych kwot wpisują je wprost do pola.
  */
-export function SettlementForm() {
+export function SettlementForm({
+  settlementId,
+  initialValues = EMPTY_SETTLEMENT_FORM_VALUES,
+  title = "Nowa wypłata",
+  submitLabel = "Zapisz wypłatę",
+  /** Ustawione znaczy „po zapisie odejdź stąd" — inaczej formularz się czyści. */
+  redirectTo,
+}: {
+  settlementId?: number;
+  initialValues?: SettlementFormValues;
+  title?: string;
+  submitLabel?: string;
+  redirectTo?: string;
+}) {
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
@@ -38,6 +59,10 @@ export function SettlementForm() {
   useEffect(() => {
     if (state.status === "saved") {
       toast.success(state.message ?? "Zapisano.");
+      if (redirectTo !== undefined) {
+        router.push(redirectTo);
+        return;
+      }
       formRef.current?.reset();
       setToday(dateRef.current);
       return;
@@ -45,15 +70,27 @@ export function SettlementForm() {
     if (state.status === "error" && state.message !== null) {
       toast.error(state.message);
     }
-  }, [state]);
+  }, [state, router, redirectTo]);
+
+  // Po zapisie trwa jeszcze nawigacja, a formularz nie jest już „w toku" —
+  // bez tego dałoby się kliknąć zapis drugi raz.
+  const busy = isPending || (redirectTo !== undefined && state.status === "saved");
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Nowa wypłata</CardTitle>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <form ref={formRef} action={formAction} className="space-y-4">
+          {settlementId === undefined ? null : (
+            <input
+              type="hidden"
+              name={SETTLEMENT_ID_FIELD}
+              value={settlementId}
+            />
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="settlement-settledOn" className="text-sm">
               Data wypłaty
@@ -63,7 +100,8 @@ export function SettlementForm() {
               id="settlement-settledOn"
               name="settledOn"
               type="date"
-              disabled={isPending}
+              defaultValue={initialValues.settledOn}
+              disabled={busy}
               aria-invalid={state.fieldErrors.settledOn !== undefined}
               aria-describedby={describedBy("settledOn", state.fieldErrors.settledOn)}
               className="h-12 text-base"
@@ -76,13 +114,13 @@ export function SettlementForm() {
               Kwota
             </Label>
             <div className="flex flex-wrap gap-2">
-              {QUICK_AMOUNTS.map((quick) => (
+              {QUICK_SETTLEMENT_AMOUNTS.map((quick) => (
                 <Button
                   key={quick}
                   type="button"
                   variant="outline"
                   className="h-11 flex-1 text-base"
-                  disabled={isPending}
+                  disabled={busy}
                   onClick={() => {
                     if (amountRef.current !== null) {
                       amountRef.current.value = quick;
@@ -99,7 +137,8 @@ export function SettlementForm() {
               name="amount"
               inputMode="decimal"
               placeholder="1000,00"
-              disabled={isPending}
+              defaultValue={initialValues.amount}
+              disabled={busy}
               aria-invalid={state.fieldErrors.amount !== undefined}
               aria-describedby={describedBy("amount", state.fieldErrors.amount)}
               className="h-12 text-base"
@@ -118,7 +157,8 @@ export function SettlementForm() {
               id="settlement-note"
               name="note"
               placeholder="gotówka, przelew…"
-              disabled={isPending}
+              defaultValue={initialValues.note}
+              disabled={busy}
               aria-invalid={state.fieldErrors.note !== undefined}
               aria-describedby={describedBy("note", state.fieldErrors.note)}
               className="h-12 text-base"
@@ -126,20 +166,20 @@ export function SettlementForm() {
             <FieldError name="note" message={state.fieldErrors.note} />
           </div>
 
-          <Button
-            type="submit"
-            className="h-12 w-full text-base"
-            disabled={isPending}
-          >
-            {isPending ? (
+          <Button type="submit" className="h-12 w-full text-base" disabled={busy}>
+            {busy ? (
               <>
                 <LoaderCircle className="size-5 animate-spin" />
                 Zapisuję…
               </>
             ) : (
               <>
-                <Plus className="size-5" />
-                Zapisz wypłatę
+                {settlementId === undefined ? (
+                  <Plus className="size-5" />
+                ) : (
+                  <Save className="size-5" />
+                )}
+                {submitLabel}
               </>
             )}
           </Button>

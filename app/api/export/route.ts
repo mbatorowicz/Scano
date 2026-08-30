@@ -1,6 +1,6 @@
 import { todayIso } from "@/lib/dates";
-import { listInvoices } from "@/lib/db/queries";
-import { readFilterValues, toInvoiceFilters } from "@/lib/invoice-filters";
+import { readFilterValues, toInvoiceFilters } from "@/lib/invoices/filters";
+import { listInvoices } from "@/lib/invoices/repository";
 import { hasValidSession } from "@/lib/session";
 
 const COLUMNS = [

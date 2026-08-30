@@ -3,6 +3,7 @@
  * i akcja na serwerze. Plik celowo nie ma dyrektywy `use server` — stan początkowy
  * i typy muszą dać się zaimportować po stronie klienta.
  */
+import { IDLE_FORM_STATE, type FormState } from "@/lib/forms/form-state";
 
 /** Wartości tak, jak stoją w polach formularza: zawsze stringi, puste zamiast `null`. */
 export type InvoiceFormValues = {
@@ -56,26 +57,16 @@ export const REQUIRED_INVOICE_FIELDS: readonly InvoiceFieldName[] = [
   "grossAmount",
 ];
 
-export type InvoiceFormStatus =
-  | "idle"
-  /** Walidacja nie przeszła — szczegóły w `fieldErrors`. */
-  | "invalid"
-  /** Taka faktura już jest w bazie; zapis czeka na potwierdzenie. */
-  | "duplicate"
-  | "error"
-  | "saved";
-
-export type InvoiceFormState = {
-  status: InvoiceFormStatus;
-  message: string | null;
-  fieldErrors: Partial<Record<InvoiceFieldName, string>>;
+/**
+ * Poza stanami wspólnymi dla wszystkich formularzy faktura ma jeszcze
+ * `duplicate`: taka faktura już jest w bazie, a zapis czeka na potwierdzenie.
+ */
+export type InvoiceFormState = FormState<InvoiceFieldName, "duplicate"> & {
   invoiceId: number | null;
 };
 
 export const INITIAL_INVOICE_FORM_STATE: InvoiceFormState = {
-  status: "idle",
-  message: null,
-  fieldErrors: {},
+  ...IDLE_FORM_STATE,
   invoiceId: null,
 };
 
@@ -83,7 +74,7 @@ export const INITIAL_INVOICE_FORM_STATE: InvoiceFormState = {
 export const INVOICE_ID_FIELD = "invoiceId";
 export const IMAGE_PATHNAME_FIELD = "imagePathname";
 export const DUPLICATE_CONFIRM_FIELD = "duplicateConfirmed";
-export const DUPLICATE_CONFIRMED_VALUE = "tak";
+export const DUPLICATE_CONFIRMED_VALUE = "1";
 
 /** Dane od AI albo z bazy w postaci, jakiej oczekują pola formularza. */
 export function toInvoiceFormValues(

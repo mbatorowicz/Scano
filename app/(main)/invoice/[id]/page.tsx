@@ -3,15 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import { InvoiceForm } from "@/components/invoice-form";
+import { DeleteInvoice } from "@/components/invoices/delete-invoice";
+import { InvoiceForm } from "@/components/invoices/invoice-form";
 import { Button } from "@/components/ui/button";
 import { invoiceImageHref } from "@/lib/blob";
-import { getInvoice } from "@/lib/db/queries";
-import { saveInvoice } from "@/lib/invoice-actions";
-import { toInvoiceFormValues } from "@/lib/invoice-form";
+import { saveInvoice } from "@/lib/invoices/actions";
+import { toInvoiceFormValues } from "@/lib/invoices/form";
+import { getInvoice } from "@/lib/invoices/repository";
 import { formatAmount } from "@/lib/money";
-
-import { DeleteInvoice } from "./delete-invoice";
 
 export const metadata: Metadata = {
   title: "Faktura",

@@ -1,28 +1,23 @@
-import { del, put } from "@vercel/blob";
+import { put } from "@vercel/blob";
 
+import { recordAiUsage } from "@/lib/ai-usage/service";
 import {
   extractInvoiceWithFallback,
   InvoiceScanError,
   isExtractionConfigured,
-} from "@/lib/ai/extract-invoice";
+  type ExtractionResult,
+} from "@/lib/ai/invoice-extraction";
 import {
   recallScan,
   rememberScan,
   scanFingerprint,
 } from "@/lib/ai/recent-scans";
-import {
-  invoiceBlobPathname,
-  invoiceImageHref,
-  isSupportedImageType,
-  MAX_IMAGE_BYTES,
-} from "@/lib/blob";
-import { recordAiUsage } from "@/lib/db/queries";
+import { invoiceBlobPathname, invoiceImageHref } from "@/lib/blob";
+import { readScanUpload } from "@/lib/scan/upload";
 import { hasValidSession } from "@/lib/session";
 
 /** Gemini potrzebuje kilku sekund na zdjęcie faktury, czasem kilkunastu. */
 export const maxDuration = 60;
-
-const FIELD_NAME = "zdjecie";
 
 function error(message: string, status: number) {
   return Response.json({ error: message }, { status });
@@ -51,26 +46,41 @@ export async function POST(request: Request) {
     return error("Nie udało się odczytać wysłanego zdjęcia.", 400);
   }
 
-  const file = formData.get(FIELD_NAME);
-  if (!(file instanceof File) || file.size === 0) {
-    return error("Nie wybrano zdjęcia faktury.", 400);
-  }
+  const upload = readScanUpload(formData);
+  if (!upload.ok) return error(upload.message, upload.status);
 
-  if (!isSupportedImageType(file.type)) {
-    return error(
-      "Ten format pliku nie jest obsługiwany. Zrób zdjęcie aparatem albo wybierz plik JPG lub PNG.",
-      415,
-    );
-  }
-
-  if (file.size > MAX_IMAGE_BYTES) {
-    return error("Zdjęcie jest za duże. Maksymalny rozmiar to 10 MB.", 413);
-  }
-
+  const { file } = upload;
   const bytes = new Uint8Array(await file.arrayBuffer());
   const fingerprint = scanFingerprint(bytes);
-  const remembered = recallScan(fingerprint);
 
+  // To samo zdjęcie drugi raz oddajemy z pamięci: odczyt jest ten sam, a
+  // dobowy limit zostaje na kolejną fakturę.
+  let result: ExtractionResult | null = recallScan(fingerprint);
+
+  if (result === null) {
+    try {
+      result = await extractInvoiceWithFallback(bytes, file.type);
+    } catch (cause) {
+      if (cause instanceof InvoiceScanError) {
+        console.error("Odczyt faktury nie udał się", cause.cause ?? cause);
+        return error(cause.message, cause.status);
+      }
+
+      console.error("Nieoczekiwany błąd odczytu faktury", cause);
+      return error("Odczyt faktury się nie udał.", 500);
+    }
+
+    // Odczyt zapamiętujemy przed wysłaniem zdjęcia do magazynu: gdyby ta
+    // wysyłka się nie udała, ponowna próba nie zabierze kolejnego odczytu
+    // z dobowego limitu.
+    rememberScan(fingerprint, result);
+    await recordAiUsage({ model: result.model, ...result.usage });
+  }
+
+  // Zdjęcie ląduje w magazynie dopiero wtedy, gdy są dane — nieudany odczyt nie
+  // zostawia po sobie pliku bez faktury. Własną ścieżkę dostaje też odczyt
+  // wyjęty z pamięci: dwa wiersze nie mogą wskazywać tego samego pliku, bo
+  // usunięcie jednej faktury zabrałoby zdjęcie drugiej.
   let pathname: string;
   try {
     const uploaded = await put(invoiceBlobPathname(file.type), file, {
@@ -84,40 +94,9 @@ export async function POST(request: Request) {
     return error("Nie udało się zapisać zdjęcia. Spróbuj ponownie.", 502);
   }
 
-  // To samo zdjęcie drugi raz oddajemy z pamięci: odczyt jest ten sam, a
-  // dobowy limit zostaje na kolejną fakturę.
-  if (remembered !== null) {
-    return Response.json({
-      imagePathname: pathname,
-      imageHref: invoiceImageHref(pathname),
-      data: remembered.data,
-    });
-  }
-
-  try {
-    const result = await extractInvoiceWithFallback(bytes, file.type);
-
-    rememberScan(fingerprint, result);
-    await recordAiUsage({ model: result.model, ...result.usage });
-
-    return Response.json({
-      imagePathname: pathname,
-      imageHref: invoiceImageHref(pathname),
-      data: result.data,
-    });
-  } catch (cause) {
-    // Zdjęcie bez odczytanych danych nie ma po co zostawać w magazynie —
-    // użytkownik i tak zrobi je ponownie.
-    await del(pathname).catch((deleteError) => {
-      console.error("Nie udało się usunąć zdjęcia po nieudanym odczycie", deleteError);
-    });
-
-    if (cause instanceof InvoiceScanError) {
-      console.error("Odczyt faktury nie udał się", cause.cause ?? cause);
-      return error(cause.message, cause.status);
-    }
-
-    console.error("Nieoczekiwany błąd odczytu faktury", cause);
-    return error("Odczyt faktury się nie udał.", 500);
-  }
+  return Response.json({
+    imagePathname: pathname,
+    imageHref: invoiceImageHref(pathname),
+    data: result.data,
+  });
 }

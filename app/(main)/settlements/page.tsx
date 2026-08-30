@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
+import { DeleteSettlement } from "@/components/settlements/delete-settlement";
+import { SettlementForm } from "@/components/settlements/settlement-form";
+import { SummaryStat } from "@/components/summary-stat";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDate } from "@/lib/dates";
-import { getBalance, listSettlements } from "@/lib/db/queries";
 import { formatCurrency, toMinorUnits } from "@/lib/money";
-
-import { DeleteSettlement } from "./delete-settlement";
-import { SettlementForm } from "./settlement-form";
+import { getBalance, listSettlements } from "@/lib/settlements/repository";
 
 export const metadata: Metadata = {
   title: "Rozliczenia",
@@ -34,8 +35,14 @@ export default async function SettlementsPage() {
       <Card>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-2 text-center">
-            <Summary label="Zarobione" value={formatCurrency(balance.earned)} />
-            <Summary label="Wypłacone" value={formatCurrency(balance.paid)} />
+            <SummaryStat
+              label="Zarobione"
+              value={formatCurrency(balance.earned)}
+            />
+            <SummaryStat
+              label="Wypłacone"
+              value={formatCurrency(balance.paid)}
+            />
           </div>
           <div className="border-t pt-4 text-center">
             <p className="text-xs text-muted-foreground">
@@ -52,6 +59,11 @@ export default async function SettlementsPage() {
 
       <section className="space-y-2">
         <h2 className="text-sm font-medium">Historia wypłat</h2>
+        {settlements.length === 0 ? null : (
+          <p className="text-xs text-muted-foreground">
+            Dotknij wypłaty, żeby poprawić kwotę albo datę.
+          </p>
+        )}
         {settlements.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -65,21 +77,24 @@ export default async function SettlementsPage() {
                 key={settlement.id}
                 className="flex items-center gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
               >
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex items-baseline justify-between gap-2">
+                <Link
+                  href={`/settlements/${settlement.id}`}
+                  className="min-w-0 flex-1 space-y-1"
+                >
+                  <span className="flex items-baseline justify-between gap-2">
                     <span className="text-sm text-muted-foreground">
                       {formatDate(settlement.settledOn)}
                     </span>
                     <span className="shrink-0 font-medium">
                       {formatCurrency(settlement.amount)}
                     </span>
-                  </div>
+                  </span>
                   {settlement.note === null ? null : (
-                    <p className="truncate text-sm text-muted-foreground">
+                    <span className="block truncate text-sm text-muted-foreground">
                       {settlement.note}
-                    </p>
+                    </span>
                   )}
-                </div>
+                </Link>
                 <DeleteSettlement
                   id={settlement.id}
                   settledOn={settlement.settledOn}
@@ -90,15 +105,6 @@ export default async function SettlementsPage() {
           </ul>
         )}
       </section>
-    </div>
-  );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-medium">{value}</p>
     </div>
   );
 }

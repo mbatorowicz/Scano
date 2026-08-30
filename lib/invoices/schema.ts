@@ -1,12 +1,13 @@
 import { z } from "zod";
 
 import { isIsoDate } from "@/lib/dates";
+import { readFormValues } from "@/lib/forms/form-state";
+import { parseAmount } from "@/lib/money";
+
 import {
   INVOICE_FIELD_NAMES,
-  type InvoiceFieldName,
   type InvoiceFormValues,
-} from "@/lib/invoice-form";
-import { parseAmount } from "@/lib/money";
+} from "./form";
 
 const AMOUNT_MESSAGE = "Nie rozumiem tej kwoty. Wpisz ją tak: 1234,56.";
 
@@ -52,28 +53,6 @@ export const invoiceFormSchema = z.object({
   costAmount: optionalAmount,
 });
 
-export type ParsedInvoiceForm = z.output<typeof invoiceFormSchema>;
-
-/** Surowe wartości z `FormData`, przycięte i uzupełnione o brakujące pola. */
 export function readInvoiceFormValues(formData: FormData): InvoiceFormValues {
-  const values = {} as InvoiceFormValues;
-  for (const name of INVOICE_FIELD_NAMES) {
-    const value = formData.get(name);
-    values[name] = typeof value === "string" ? value.trim() : "";
-  }
-  return values;
-}
-
-/** Pierwszy błąd na pole — przy jednym polu więcej niż jeden i tak nie pomaga. */
-export function invoiceFieldErrors(error: {
-  issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>;
-}): Partial<Record<InvoiceFieldName, string>> {
-  const errors: Partial<Record<InvoiceFieldName, string>> = {};
-  for (const issue of error.issues) {
-    const name = issue.path[0];
-    if (typeof name === "string" && !(name in errors)) {
-      errors[name as InvoiceFieldName] = issue.message;
-    }
-  }
-  return errors;
+  return readFormValues(formData, INVOICE_FIELD_NAMES);
 }

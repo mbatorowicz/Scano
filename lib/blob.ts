@@ -27,10 +27,19 @@ export function isSupportedImageType(mediaType: string): boolean {
   return mediaType in EXTENSIONS;
 }
 
-export const SUPPORTED_IMAGE_TYPES = Object.keys(EXTENSIONS);
+/**
+ * Odwrotność `EXTENSIONS`: z rozszerzenia pliku na typ MIME. Potrzebna skryptom,
+ * które czytają zdjęcie z dysku, a tam typu nie podaje przeglądarka.
+ */
+export function imageTypeForExtension(extension: string): string | null {
+  const normalized = extension.toLowerCase().replace(/^\./, "");
+  const canonical = normalized === "jpeg" ? "jpg" : normalized;
 
-/** Zdjęcie z telefonu po kompresji ma zwykle poniżej 1 MB; 10 MB to zapas na oryginały. */
-export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+  const found = Object.entries(EXTENSIONS).find(
+    ([, candidate]) => candidate === canonical,
+  );
+  return found?.[0] ?? null;
+}
 
 /**
  * Ścieżka w magazynie: rok i miesiąc pomagają się połapać w plikach,

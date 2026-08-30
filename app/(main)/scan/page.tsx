@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { ScanForm } from "./scan-form";
+import { ScanForm } from "@/components/scan/scan-form";
 
 export const metadata: Metadata = {
   title: "Skanowanie",

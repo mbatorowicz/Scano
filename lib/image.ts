@@ -3,11 +3,7 @@
  * faktury dokładniej z 4000 px niż z 1600. Skalujemy je przed wysyłką, żeby
  * upload w słabym zasięgu nie trwał minutami.
  */
-
-/** Dłuższy bok po skalowaniu. Tekst faktury zostaje czytelny, plik schodzi poniżej megabajta. */
-const MAX_EDGE = 1600;
-
-const QUALITY = 0.82;
+import { IMAGE_MAX_EDGE, IMAGE_QUALITY } from "@/lib/config";
 
 const OUTPUT_TYPE = "image/jpeg";
 
@@ -29,7 +25,10 @@ export async function compressImage(file: File): Promise<File> {
   }
 
   try {
-    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(
+      1,
+      IMAGE_MAX_EDGE / Math.max(bitmap.width, bitmap.height),
+    );
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, Math.round(bitmap.width * scale));
     canvas.height = Math.max(1, Math.round(bitmap.height * scale));
@@ -40,7 +39,7 @@ export async function compressImage(file: File): Promise<File> {
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
 
     const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, OUTPUT_TYPE, QUALITY);
+      canvas.toBlob(resolve, OUTPUT_TYPE, IMAGE_QUALITY);
     });
 
     if (blob === null || blob.size === 0) return file;

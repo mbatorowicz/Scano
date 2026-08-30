@@ -27,6 +27,18 @@ export function todayIso(now = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Północ czasu urządzenia, nie UTC — dobowy limit odczytów zeruje się wtedy,
+ * kiedy dla użytkownika zaczyna się nowy dzień.
+ */
+export function startOfDay(now = new Date()): Date {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+export function startOfMonth(now = new Date()): Date {
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
 /** `2026-08-12` na `12.08.2026` — zapis, w jakim data stoi na fakturze. */
 export function formatDate(value: string | null | undefined): string {
   if (!isIsoDate(value)) return "—";

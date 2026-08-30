@@ -125,3 +125,27 @@ export function formatCurrency(value: string | null | undefined): string {
   const formatted = formatAmount(value);
   return formatted === "—" ? formatted : `${formatted}\u00a0zł`;
 }
+
+/**
+ * Kwota, której nie da się odczytać, nie ma trafić do bazy jako zero — wtedy
+ * pomyłka w zapisie zniknęłaby bez śladu w sumach.
+ */
+export class InvalidAmountError extends Error {
+  constructor(field: string) {
+    super(`Nie udało się odczytać kwoty w polu ${field}.`);
+    this.name = "InvalidAmountError";
+  }
+}
+
+/** Kwota obowiązkowa; `field` trafia do komunikatu, więc podajemy nazwę z ekranu. */
+export function requireAmount(value: string, field: string): string {
+  const parsed = parseAmount(value);
+  if (parsed === null) throw new InvalidAmountError(field);
+  return parsed;
+}
+
+/** Kwota, którą wolno pominąć: pusto zostaje pustką, nie zerem. */
+export function optionalAmount(value: string | null | undefined): string | null {
+  if (value === null || value === undefined || value.trim() === "") return null;
+  return parseAmount(value);
+}
