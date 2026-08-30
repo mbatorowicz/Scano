@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Scano
 
-## Getting Started
+Skaner faktur na telefon. Robisz zdjęcie, Gemini odczytuje numer, datę, sprzedawcę, nabywcę
+i kwoty, ty poprawiasz co trzeba w formularzu, a aplikacja zapisuje fakturę w Postgresie
+i wylicza prowizję jako procent od wartości brutto.
 
-First, run the development server:
+Produkcja: https://scano-beta.vercel.app — chroniona jednym hasłem, dodaje się do ekranu
+głównego jako PWA.
+
+Opis architektury, powody podjętych decyzji i historia etapów siedzą w [docs/PLAN.md](docs/PLAN.md).
+
+## Uruchomienie lokalne
+
+Potrzebny jest Node.js 20 lub nowszy oraz konto na Vercelu z podłączonym projektem
+(baza Neon i Blob są provisionowane przez Vercel Marketplace).
 
 ```bash
+npm install
+npx vercel link          # tylko za pierwszym razem
+npx vercel env pull .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`vercel env pull` ściąga wszystkie zmienne poza kluczem Gemini, który trzeba dopisać ręcznie —
+patrz niżej. Aplikacja startuje na http://localhost:3000 i od razu przekierowuje na `/login`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Baza i magazyn zdjęć są wspólne dla dev i produkcji, więc faktura zeskanowana lokalnie
+pojawi się też na telefonie.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Zmienne środowiskowe
 
-## Learn More
+| zmienna | do czego | skąd |
+| --- | --- | --- |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | odczyt faktury przez Gemini | https://aistudio.google.com/apikey |
+| `APP_PASSWORD` | hasło do aplikacji | dowolne, ustawiasz sam |
+| `AUTH_SECRET` | podpis ciasteczka sesji | losowy ciąg, np. `openssl rand -base64 32` |
+| `DATABASE_URL` | Neon Postgres | `vercel env pull` |
+| `DATABASE_URL_UNPOOLED` | migracje Drizzle | `vercel env pull` |
+| `BLOB_READ_WRITE_TOKEN` | zdjęcia w Vercel Blob | `vercel env pull` |
 
-To learn more about Next.js, take a look at the following resources:
+Klucz Gemini z darmowego planu AI Studio wystarcza na **20 odczytów na dobę dla każdego
+modelu**. Aplikacja liczy zapytania, nie tokeny, więc nie ponawia odczytu po cichu, pamięta
+ostatnio wysłane zdjęcia po skrócie SHA-256 i po wyczerpaniu limitu Flasha sięga po Flash Lite.
+Bieżące zużycie widać w Ustawieniach.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Baza danych
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run db:generate      # migracja ze zmian w lib/db/schema.ts
+npm run db:migrate       # wykonanie migracji na Neonie
+npm run db:seed          # wiersz ustawień z domyślną stawką prowizji
+```
 
-## Deploy on Vercel
+## Sprawdzenia
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Uruchamiane ręcznie, nie ma tu frameworka testowego:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run db:check         # kwoty, prowizje i zapytania — pełny obieg przez bazę
+npm run form:check       # droga od danych z formularza do wiersza w bazie
+npm run scan:check -- ".\samples\faktura-0350.png"   # odczyt AI, wymaga npm run dev
+npm run ai:cost          # porównanie ustawień Gemini: tokeny, czas, trafność
+```
+
+`db:check` i `form:check` sprzątają po sobie i nie kosztują nic. `scan:check` i `ai:cost`
+zużywają dobowy limit odczytów.
+
+Zdjęcia testowe w `samples/` są poza repozytorium — zawierają prawdziwe dane kontrahentów.
+
+## Sprzątanie magazynu zdjęć
+
+Zdjęcie trafia do Bloba już przy odczycie, zanim faktura zostanie zatwierdzona, więc porzucone
+skany zostawiają pliki bez właściciela:
+
+```bash
+npm run blob:clean              # wypisuje osierocone zdjęcia, niczego nie usuwa
+npm run blob:clean -- --usun    # usuwa je naprawdę
+```
+
+Pliki wgrane w ciągu ostatniej godziny są pomijane — mogą czekać w otwartym formularzu.
+
+## Wdrożenie
+
+Jest jedno środowisko: produkcja. Push na `main` wdraża ją automatycznie, a `npm run deploy`
+(`vercel deploy --prod`) wdraża od razu, bez commita. Przed wdrożeniem warto puścić
+`npm run build` i `npm run lint`.
+
+Zmienne `APP_PASSWORD`, `AUTH_SECRET` i `GOOGLE_GENERATIVE_AI_API_KEY` są ustawione tylko dla
+Production i Development, więc deployment preview z gałęzi wstanie, ale nie da się w nim
+zalogować ani odczytać faktury.
