@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import { fieldErrors } from "@/lib/forms/form-state";
 
 import type { InvoiceFieldName } from "./form";
-import { invoiceFormSchema, readInvoiceFormValues } from "./schema";
+import { requiredInvoiceFields } from "./form";
+import { invoiceFormSections } from "./form-fields";
+import {
+  buyerFromParties,
+  invoiceFormSchema,
+  readInvoiceFormValues,
+} from "./schema";
 
 function form(fields: Record<string, string>): FormData {
   const formData = new FormData();
@@ -61,8 +67,23 @@ describe("invoiceFormSchema", () => {
     expect(errors.invoiceNumber).toBe("Podaj numer faktury.");
     expect(errors.issueDate).toBe("Podaj datę wystawienia.");
     expect(errors.sellerName).toBe("Podaj nazwę sprzedawcy.");
-    expect(errors.buyerName).toBe("Podaj nazwę nabywcy.");
     expect(errors.grossAmount).toBe("Podaj wartość brutto.");
+    expect(errors.buyerName).toBeUndefined();
+  });
+
+  it("przyjmuje pustego nabywcę, gdy jest odbiorca", () => {
+    const parsed = parse({ ...FILLED, buyerName: "", buyerNip: "" });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.buyerName).toBe("");
+    expect(
+      buyerFromParties({
+        buyerName: parsed.data.buyerName,
+        buyerNip: parsed.data.buyerNip,
+        recipientName: parsed.data.recipientName,
+        recipientNip: parsed.data.recipientNip,
+      }),
+    ).toEqual({ name: "GOPS Miedzna", nip: "5250000039" });
   });
 
   it("puste pola opcjonalne zostają pustką, nie zerem", () => {
@@ -122,6 +143,65 @@ describe("invoiceFormSchema", () => {
   it("pilnuje długości pól tekstowych", () => {
     const errors = errorsFor({ ...FILLED, sellerName: "x".repeat(201) });
     expect(errors.sellerName).toBe("Ta wartość jest za długa.");
+  });
+});
+
+describe("buyerFromParties", () => {
+  it("bierze nabywcę, a gdy go nie ma — odbiorcę", () => {
+    expect(
+      buyerFromParties({
+        buyerName: "Gmina Miedzna",
+        buyerNip: "8241723514",
+        recipientName: "GOPS Miedzna",
+        recipientNip: "5250000039",
+      }),
+    ).toEqual({ name: "Gmina Miedzna", nip: "8241723514" });
+
+    expect(
+      buyerFromParties({
+        buyerName: "",
+        buyerNip: null,
+        recipientName: "GOPS Miedzna",
+        recipientNip: "5250000039",
+      }),
+    ).toEqual({ name: "GOPS Miedzna", nip: "5250000039" });
+
+    expect(
+      buyerFromParties({
+        buyerName: "",
+        buyerNip: null,
+        recipientName: "",
+        recipientNip: null,
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("invoiceFormSections", () => {
+  it("układa strony: sprzedawca, nabywca, odbiorca", () => {
+    const sides = invoiceFormSections().find((section) => section.title === "Strony");
+    expect(sides?.fields.map((field) => field.name)).toEqual([
+      "sellerName",
+      "sellerNip",
+      "buyerName",
+      "buyerNip",
+      "recipientName",
+      "recipientNip",
+    ]);
+  });
+
+  it("przy ręcznym wpisie ukrywa nabywcę", () => {
+    const sides = invoiceFormSections({ manual: true }).find(
+      (section) => section.title === "Strony",
+    );
+    expect(sides?.fields.map((field) => field.name)).toEqual([
+      "sellerName",
+      "sellerNip",
+      "recipientName",
+      "recipientNip",
+    ]);
+    expect(requiredInvoiceFields({ manual: true })).toContain("recipientName");
+    expect(requiredInvoiceFields({ manual: true })).not.toContain("buyerName");
   });
 });
 

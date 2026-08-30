@@ -15,6 +15,7 @@ export function InvoiceFormField({
   error,
   missing,
   disabled,
+  required = REQUIRED_INVOICE_FIELDS.includes(field.name),
   children,
 }: {
   field: InvoiceFieldConfig;
@@ -24,6 +25,7 @@ export function InvoiceFormField({
   /** AI nie odczytała tego pola — zostaje wyraźna adnotacja, żeby go nie przeoczyć. */
   missing: boolean;
   disabled: boolean;
+  required?: boolean;
   children?: ReactNode;
 }) {
   const id = `invoice-${field.name}`;
@@ -34,7 +36,7 @@ export function InvoiceFormField({
     <div className={cn("space-y-2", field.wide && "sm:col-span-2")}>
       <Label htmlFor={id} className="text-sm">
         {field.label}
-        {REQUIRED_INVOICE_FIELDS.includes(field.name) ? null : (
+        {required ? null : (
           <span className="font-normal text-muted-foreground">(opcjonalne)</span>
         )}
       </Label>

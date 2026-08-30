@@ -26,7 +26,11 @@ import {
   type InvoiceFormState,
 } from "./form";
 import { findDuplicateInvoice } from "./repository";
-import { invoiceFormSchema, readInvoiceFormValues } from "./schema";
+import {
+  buyerFromParties,
+  invoiceFormSchema,
+  readInvoiceFormValues,
+} from "./schema";
 import {
   createInvoice,
   deleteInvoice,
@@ -66,6 +70,16 @@ export async function saveInvoice(
     };
   }
 
+  const buyerParty = buyerFromParties(parsed.data);
+  if (buyerParty === null) {
+    return {
+      status: "invalid",
+      message: "Popraw zaznaczone pola i spróbuj jeszcze raz.",
+      fieldErrors: { buyerName: "Podaj nazwę nabywcy." },
+      invoiceId: null,
+    };
+  }
+
   /** Brak identyfikatora znaczy, że zapisujemy nową fakturę. */
   const id = readEntityId(formData, INVOICE_ID_FIELD);
   const confirmed =
@@ -92,10 +106,7 @@ export async function saveInvoice(
     }
   }
 
-  const buyer = await resolveContractor({
-    name: parsed.data.buyerName,
-    nip: parsed.data.buyerNip,
-  });
+  const buyer = await resolveContractor(buyerParty);
 
   const recipient = await resolveRecipient({
     name: parsed.data.recipientName,

@@ -19,6 +19,8 @@ export type InvoiceFieldConfig = {
   kind?: "contractor";
   nipField?: InvoiceFieldName;
   idField?: InvoiceFieldName;
+  /** Przy ręcznym wpisie pole nie wychodzi na ekran. */
+  hideOnManual?: boolean;
 };
 
 export type InvoiceFormSection = {
@@ -36,37 +38,9 @@ export const INVOICE_FORM_SECTIONS: readonly InvoiceFormSection[] = [
   },
   {
     title: "Strony",
-    // Odbiorca pierwszy: to on rozróżnia faktury na liście. Sprzedawca jest
-    // zawsze Pecet, a nabywca (gmina) zostaje w zapisie, ale nie w spisie.
+    // Kolejność jak na fakturze. Przy ręcznym wpisie nabywcy nie pytamy —
+    // zapis bierze go z odbiorcy.
     fields: [
-      {
-        name: "recipientName",
-        label: "Odbiorca",
-        wide: true,
-        kind: "contractor",
-        nipField: "recipientNip",
-        idField: "recipientContractorId",
-      },
-      {
-        name: "recipientNip",
-        label: "NIP odbiorcy",
-        inputMode: "numeric",
-        placeholder: "opcjonalnie",
-      },
-      {
-        name: "buyerName",
-        label: "Nabywca",
-        wide: true,
-        kind: "contractor",
-        nipField: "buyerNip",
-        idField: "buyerContractorId",
-      },
-      {
-        name: "buyerNip",
-        label: "NIP nabywcy",
-        inputMode: "numeric",
-        placeholder: "opcjonalnie",
-      },
       {
         name: "sellerName",
         label: "Sprzedawca",
@@ -78,6 +52,36 @@ export const INVOICE_FORM_SECTIONS: readonly InvoiceFormSection[] = [
       {
         name: "sellerNip",
         label: "NIP sprzedawcy",
+        inputMode: "numeric",
+        placeholder: "opcjonalnie",
+      },
+      {
+        name: "buyerName",
+        label: "Nabywca",
+        wide: true,
+        kind: "contractor",
+        nipField: "buyerNip",
+        idField: "buyerContractorId",
+        hideOnManual: true,
+      },
+      {
+        name: "buyerNip",
+        label: "NIP nabywcy",
+        inputMode: "numeric",
+        placeholder: "opcjonalnie",
+        hideOnManual: true,
+      },
+      {
+        name: "recipientName",
+        label: "Odbiorca",
+        wide: true,
+        kind: "contractor",
+        nipField: "recipientNip",
+        idField: "recipientContractorId",
+      },
+      {
+        name: "recipientNip",
+        label: "NIP odbiorcy",
         inputMode: "numeric",
         placeholder: "opcjonalnie",
       },
@@ -105,3 +109,15 @@ export const INVOICE_FORM_SECTIONS: readonly InvoiceFormSection[] = [
     ],
   },
 ];
+
+/** Sekcje widoczne w danym trybie — przy ręcznym wpisie bez nabywcy. */
+export function invoiceFormSections(options: {
+  manual?: boolean;
+} = {}): InvoiceFormSection[] {
+  return INVOICE_FORM_SECTIONS.map((section) => ({
+    ...section,
+    fields: options.manual
+      ? section.fields.filter((field) => !field.hideOnManual)
+      : section.fields,
+  }));
+}

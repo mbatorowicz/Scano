@@ -45,7 +45,10 @@ export const invoiceFormSchema = z.object({
     .refine(isIsoDate, "Ta data nie wygląda poprawnie."),
   sellerName: text(200, "Podaj nazwę sprzedawcy."),
   sellerNip: nip,
-  buyerName: text(200, "Podaj nazwę nabywcy."),
+  buyerName: z
+    .string()
+    .max(200, "Ta wartość jest za długa.")
+    .transform((value) => value.trim()),
   buyerNip: nip,
   recipientName: z
     .string()
@@ -60,4 +63,23 @@ export const invoiceFormSchema = z.object({
 
 export function readInvoiceFormValues(formData: FormData): InvoiceFormValues {
   return readFormValues(formData, INVOICE_FIELD_NAMES);
+}
+
+/**
+ * Nabywca z formularza, a gdy go nie wpisano — odbiorca. Ręczne dodanie
+ * nie pyta o gminę; zapis i tak musi mieć stronę kupującą.
+ */
+export function buyerFromParties(data: {
+  buyerName: string;
+  buyerNip: string | null;
+  recipientName: string;
+  recipientNip: string | null;
+}): { name: string; nip: string | null } | null {
+  if (data.buyerName !== "") {
+    return { name: data.buyerName, nip: data.buyerNip };
+  }
+  if (data.recipientName !== "") {
+    return { name: data.recipientName, nip: data.recipientNip };
+  }
+  return null;
 }

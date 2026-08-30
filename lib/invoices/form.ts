@@ -73,6 +73,20 @@ export const REQUIRED_INVOICE_FIELDS: readonly InvoiceFieldName[] = [
   "grossAmount",
 ];
 
+/** Przy ręcznym wpisie zamiast nabywcy wymagamy odbiorcy. */
+export function requiredInvoiceFields(options: {
+  manual?: boolean;
+} = {}): readonly InvoiceFieldName[] {
+  if (!options.manual) return REQUIRED_INVOICE_FIELDS;
+  return [
+    "invoiceNumber",
+    "issueDate",
+    "sellerName",
+    "recipientName",
+    "grossAmount",
+  ];
+}
+
 /**
  * Poza stanami wspólnymi dla wszystkich formularzy faktura ma jeszcze
  * `duplicate`: taka faktura już jest w bazie, a zapis czeka na potwierdzenie.

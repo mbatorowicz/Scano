@@ -82,6 +82,7 @@ export function ScanForm({
           imagePathname={draft.imagePathname}
           imageSrc={draft.imageSrc}
           missingFields={draft.missingFields}
+          manual={draft.manual}
         />
       </div>
     );

@@ -37,6 +37,7 @@ export function ContractorField({
   error,
   missing,
   disabled,
+  required = REQUIRED_INVOICE_FIELDS.includes(field.name),
 }: {
   field: InvoiceFieldConfig;
   name: string;
@@ -48,6 +49,7 @@ export function ContractorField({
   error?: string;
   missing: boolean;
   disabled: boolean;
+  required?: boolean;
 }) {
   const id = `invoice-${field.name}`;
   const listId = useId();
@@ -72,7 +74,7 @@ export function ContractorField({
     <div className={cn("space-y-2", field.wide && "sm:col-span-2")}>
       <Label htmlFor={id} className="text-sm">
         {field.label}
-        {REQUIRED_INVOICE_FIELDS.includes(field.name) ? null : (
+        {required ? null : (
           <span className="font-normal text-muted-foreground">(opcjonalne)</span>
         )}
       </Label>

@@ -27,6 +27,8 @@ export type InvoiceScanDraft = {
   missingFields: InvoiceFieldName[];
   imagePathname: string | null;
   imageSrc: string | null;
+  /** Wpis z ręki, bez zdjęcia — formularz nie pyta o nabywcę. */
+  manual: boolean;
 };
 
 /**
@@ -93,6 +95,7 @@ export function useInvoiceScan(defaults?: Partial<InvoiceFormValues>) {
         missingFields: emptyInvoiceFields(values),
         imagePathname: payload.imagePathname ?? null,
         imageSrc: previewUrl.current,
+        manual: false,
       });
     } catch (cause) {
       console.error("Wysyłka zdjęcia nie udała się", cause);
@@ -123,6 +126,7 @@ export function useInvoiceScan(defaults?: Partial<InvoiceFormValues>) {
       missingFields: [],
       imagePathname: null,
       imageSrc: null,
+      manual: true,
     });
   }
 

@@ -23,11 +23,12 @@ import {
   IMAGE_PATHNAME_FIELD,
   INITIAL_INVOICE_FORM_STATE,
   INVOICE_ID_FIELD,
+  requiredInvoiceFields,
   type InvoiceFieldName,
   type InvoiceFormState,
   type InvoiceFormValues,
 } from "@/lib/invoices/form";
-import { INVOICE_FORM_SECTIONS } from "@/lib/invoices/form-fields";
+import { invoiceFormSections } from "@/lib/invoices/form-fields";
 
 type Party = "seller" | "buyer" | "recipient";
 
@@ -45,6 +46,21 @@ function partyFields(party: Party) {
   } as const;
 }
 
+/** Przy ręcznym wpisie błąd nabywcy ląduje przy odbiorcy — tego pola nie ma na ekranie. */
+function fieldErrorsForMode(
+  fieldErrors: InvoiceFormState["fieldErrors"],
+  manual: boolean,
+): InvoiceFormState["fieldErrors"] {
+  if (
+    !manual ||
+    fieldErrors.buyerName === undefined ||
+    fieldErrors.recipientName !== undefined
+  ) {
+    return fieldErrors;
+  }
+  return { ...fieldErrors, recipientName: "Podaj nazwę odbiorcy." };
+}
+
 export function InvoiceForm({
   action,
   initialValues,
@@ -55,6 +71,7 @@ export function InvoiceForm({
   missingFields = [],
   submitLabel = "Zapisz fakturę",
   redirectTo = "/invoices",
+  manual = false,
 }: {
   action: (
     state: InvoiceFormState,
@@ -71,6 +88,8 @@ export function InvoiceForm({
   submitLabel?: string;
   /** Dokąd wracamy po udanym zapisie. */
   redirectTo?: string;
+  /** Ręczny wpis: bez zdjęcia i bez pytania o nabywcę. */
+  manual?: boolean;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -96,6 +115,9 @@ export function InvoiceForm({
   // Po zapisie trwa jeszcze nawigacja, a formularz nie jest już „w toku" —
   // bez tego dałoby się kliknąć zapis drugi raz i dodać fakturę dwa razy.
   const busy = isPending || state.status === "saved";
+  const sections = invoiceFormSections({ manual });
+  const requiredFields = requiredInvoiceFields({ manual });
+  const fieldErrors = fieldErrorsForMode(state.fieldErrors, manual);
 
   function setValue(name: InvoiceFieldName, value: string) {
     setValues((previous) => ({ ...previous, [name]: value }));
@@ -184,7 +206,7 @@ export function InvoiceForm({
 
       {imageSrc ? <InvoicePhoto src={imageSrc} /> : null}
 
-      {INVOICE_FORM_SECTIONS.map((section) => (
+      {sections.map((section) => (
         <Card key={section.title}>
           <CardHeader>
             <CardTitle>{section.title}</CardTitle>
@@ -207,12 +229,13 @@ export function InvoiceForm({
                     onNameChange={(value) => applyName(party, value)}
                     onSelect={(contractor) => applyContractor(party, contractor)}
                     onRenamed={(contractor) => applyRename(party, contractor)}
-                    error={state.fieldErrors[field.name]}
+                    error={fieldErrors[field.name]}
                     missing={
                       missingFields.includes(field.name) &&
                       values[field.name].length === 0
                     }
                     disabled={busy}
+                    required={requiredFields.includes(field.name)}
                   />
                 );
               }
@@ -236,12 +259,13 @@ export function InvoiceForm({
                     }
                     setValue(field.name, value);
                   }}
-                  error={state.fieldErrors[field.name]}
+                  error={fieldErrors[field.name]}
                   missing={
                     missingFields.includes(field.name) &&
                     values[field.name].length === 0
                   }
                   disabled={busy}
+                  required={requiredFields.includes(field.name)}
                 >
                   {field.name === "costAmount" ? (
                     <PayoutHint
