@@ -36,6 +36,3 @@ export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const IMAGE_MAX_EDGE = 1600;
 
 export const IMAGE_QUALITY = 0.82;
-
-/** Kwoty rozliczane najczęściej — jedno dotknięcie zamiast wklepywania na telefonie. */
-export const QUICK_SETTLEMENT_AMOUNTS = ["700", "1000", "1300", "1500"] as const;

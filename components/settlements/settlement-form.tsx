@@ -9,9 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { QUICK_SETTLEMENT_AMOUNTS } from "@/lib/config";
 import { todayIso } from "@/lib/dates";
-import { formatAmount } from "@/lib/money";
 import { saveSettlement } from "@/lib/settlements/actions";
 import {
   EMPTY_SETTLEMENT_FORM_VALUES,
@@ -25,7 +23,7 @@ import {
  * `settlementId`, dokładnie tak jak w formularzu faktury.
  *
  * Pola są niekontrolowane: po odrzuceniu przez walidację wpisane wartości mają
- * zostać na miejscu, a przyciski stałych kwot wpisują je wprost do pola.
+ * zostać na miejscu.
  */
 export function SettlementForm({
   settlementId,
@@ -44,7 +42,6 @@ export function SettlementForm({
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
-  const amountRef = useRef<HTMLInputElement>(null);
   const [state, formAction, isPending] = useActionState(
     saveSettlement,
     INITIAL_SETTLEMENT_FORM_STATE,
@@ -113,26 +110,7 @@ export function SettlementForm({
             <Label htmlFor="settlement-amount" className="text-sm">
               Kwota
             </Label>
-            <div className="flex flex-wrap gap-2">
-              {QUICK_SETTLEMENT_AMOUNTS.map((quick) => (
-                <Button
-                  key={quick}
-                  type="button"
-                  variant="outline"
-                  className="h-11 flex-1 text-base"
-                  disabled={busy}
-                  onClick={() => {
-                    if (amountRef.current !== null) {
-                      amountRef.current.value = quick;
-                    }
-                  }}
-                >
-                  {formatAmount(quick)}
-                </Button>
-              ))}
-            </div>
             <Input
-              ref={amountRef}
               id="settlement-amount"
               name="amount"
               inputMode="decimal"
