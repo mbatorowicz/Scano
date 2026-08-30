@@ -9,6 +9,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useInvoiceScan } from "@/hooks/use-invoice-scan";
 import type { ContractorOption } from "@/lib/contractors/form";
+import { knownSellerFormValues } from "@/lib/contractors/known-seller";
 import { saveInvoice } from "@/lib/invoices/actions";
 
 export function ScanForm({
@@ -19,7 +20,7 @@ export function ScanForm({
   const cameraInput = useRef<HTMLInputElement>(null);
   const galleryInput = useRef<HTMLInputElement>(null);
   const { preview, isReading, error, draft, readInvoice, startOver, enterManually } =
-    useInvoiceScan();
+    useInvoiceScan(knownSellerFormValues(contractors));
 
   function pickFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];

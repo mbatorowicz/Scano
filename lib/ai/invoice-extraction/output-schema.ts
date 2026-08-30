@@ -18,19 +18,24 @@ export const extractionSchema = z.object({
     .string()
     .nullable()
     .describe(
-      'Sama nazwa sprzedawcy, bez adresu i NIP-u, np. \'F.H.U. "Pecet" Mariusz Szczęsny\'.',
+      'Sama nazwa sprzedawcy — zawsze F.H.U. "Pecet" Mariusz Szczęsny, bez adresu i NIP-u.',
     ),
-  sellerNip: z.string().nullable().describe("NIP sprzedawcy, same cyfry."),
+  sellerNip: z
+    .string()
+    .nullable()
+    .describe("NIP sprzedawcy Pecet, same cyfry: 8241167409."),
   buyerName: z
     .string()
     .nullable()
     .describe(
-      'Sama nazwa nabywcy z bloku NABYWCA, bez adresu i NIP-u, np. "Gmina Miedzna". Nie nazwa z bloku ODBIORCA.',
+      'Sama nazwa z bloku NABYWCA, bez adresu i NIP-u, np. "Gmina Miedzna". Nigdy nazwa z bloku ODBIORCA.',
     ),
   buyerNip: z
     .string()
     .nullable()
-    .describe("NIP nabywcy z bloku NABYWCA, same cyfry. Nie NIP odbiorcy."),
+    .describe(
+      "NIP z bloku NABYWCA, same cyfry. Nigdy NIP z bloku ODBIORCA.",
+    ),
   /**
    * Odbiorcy nie zapisujemy, ale musi mieć w odpowiedzi własne miejsce.
    * Bez tych dwóch pól model wpisywał NIP odbiorcy do `buyerNip` — dane, które

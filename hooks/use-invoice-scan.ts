@@ -34,7 +34,7 @@ export type InvoiceScanDraft = {
  * na `/api/scan` i przeniesienie odpowiedzi do pól. Ekran skanowania trzyma
  * dzięki temu tylko przyciski i to, co widać.
  */
-export function useInvoiceScan() {
+export function useInvoiceScan(defaults?: Partial<InvoiceFormValues>) {
   const router = useRouter();
   const previewUrl = useRef<string | null>(null);
 
@@ -84,7 +84,10 @@ export function useInvoiceScan() {
         return;
       }
 
-      const values = toInvoiceFormValues(payload.data);
+      const values = {
+        ...toInvoiceFormValues(payload.data),
+        ...defaults,
+      };
       setDraft({
         values,
         missingFields: emptyInvoiceFields(values),
@@ -112,7 +115,11 @@ export function useInvoiceScan() {
     showPreview(null);
     setError(null);
     setDraft({
-      values: { ...EMPTY_INVOICE_FORM_VALUES, issueDate: todayIso() },
+      values: {
+        ...EMPTY_INVOICE_FORM_VALUES,
+        ...defaults,
+        issueDate: todayIso(),
+      },
       missingFields: [],
       imagePathname: null,
       imageSrc: null,

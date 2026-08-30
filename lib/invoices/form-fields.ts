@@ -36,21 +36,8 @@ export const INVOICE_FORM_SECTIONS: readonly InvoiceFormSection[] = [
   },
   {
     title: "Strony",
+    // Nabywca pierwszy: to on rozróżnia faktury. Sprzedawca jest zawsze Pecet.
     fields: [
-      {
-        name: "sellerName",
-        label: "Sprzedawca",
-        wide: true,
-        kind: "contractor",
-        nipField: "sellerNip",
-        idField: "sellerContractorId",
-      },
-      {
-        name: "sellerNip",
-        label: "NIP sprzedawcy",
-        inputMode: "numeric",
-        placeholder: "opcjonalnie",
-      },
       {
         name: "buyerName",
         label: "Nabywca",
@@ -62,6 +49,20 @@ export const INVOICE_FORM_SECTIONS: readonly InvoiceFormSection[] = [
       {
         name: "buyerNip",
         label: "NIP nabywcy",
+        inputMode: "numeric",
+        placeholder: "opcjonalnie",
+      },
+      {
+        name: "sellerName",
+        label: "Sprzedawca",
+        wide: true,
+        kind: "contractor",
+        nipField: "sellerNip",
+        idField: "sellerContractorId",
+      },
+      {
+        name: "sellerNip",
+        label: "NIP sprzedawcy",
         inputMode: "numeric",
         placeholder: "opcjonalnie",
       },

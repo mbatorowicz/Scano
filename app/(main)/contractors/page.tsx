@@ -27,8 +27,9 @@ export default async function ContractorsPage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Kontrahenci</h1>
         <p className="text-sm text-muted-foreground">
-          Sprzedawcy i nabywcy z faktur. Poprawiona nazwa wraca przy następnym
-          skanie i widać ją na wszystkich dokumentach tej firmy.
+          Nabywcy z faktur. Sprzedawca jest zawsze Pecet. Poprawiona nazwa
+          wraca przy następnym skanie i widać ją na wszystkich dokumentach
+          tej firmy.
         </p>
       </header>
 

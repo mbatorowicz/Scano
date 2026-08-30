@@ -38,10 +38,10 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceWithParties[] }) {
                   </span>
                 </span>
                 <span className="block truncate text-sm font-medium">
-                  {invoice.sellerName}
+                  {invoice.buyerName}
                 </span>
                 <span className="flex items-baseline justify-between gap-2 text-sm text-muted-foreground">
-                  <span className="truncate">{invoice.buyerName}</span>
+                  <span className="truncate">{invoice.sellerName}</span>
                   <span className="shrink-0">
                     dla mnie {formatCurrency(invoice.payoutAmount)}
                   </span>
@@ -59,8 +59,8 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceWithParties[] }) {
             <TableRow>
               <TableHead className="w-10">Lp.</TableHead>
               <TableHead>Data</TableHead>
-              <TableHead>Sprzedawca</TableHead>
               <TableHead>Nabywca</TableHead>
+              <TableHead>Sprzedawca</TableHead>
               <TableHead className="text-right">Brutto</TableHead>
               <TableHead className="text-right">Cena dla mnie</TableHead>
               <TableHead className="text-right">Dla mnie</TableHead>
@@ -78,8 +78,8 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceWithParties[] }) {
                     {formatDate(invoice.issueDate)}
                   </Link>
                 </TableCell>
-                <TableCell className="max-w-56 truncate">{invoice.sellerName}</TableCell>
                 <TableCell className="max-w-56 truncate">{invoice.buyerName}</TableCell>
+                <TableCell className="max-w-56 truncate">{invoice.sellerName}</TableCell>
                 <TableCell className="text-right font-medium">
                   {formatCurrency(invoice.grossAmount)}
                 </TableCell>
