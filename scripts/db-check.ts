@@ -5,8 +5,11 @@
  */
 import {
   createInvoice,
+  createSettlement,
   deleteInvoice,
+  deleteSettlement,
   findDuplicateInvoice,
+  getBalance,
   getInvoice,
   listInvoices,
 } from "@/lib/db/queries";
@@ -49,6 +52,43 @@ function checkPayout() {
   check("puste pole liczy się jak zero", calculatePayout("1107.00", ""), "756.30");
   check("cena wyższa niż brutto to strata", calculatePayout("700.00", "750.00"), "-34.16");
   console.log();
+}
+
+/**
+ * Saldo: wypłata ma zbić należność dokładnie o swoją kwotę i oddać ją z powrotem
+ * po usunięciu. Liczy je baza, więc sprawdzamy to na prawdziwym wierszu.
+ */
+async function checkBalance() {
+  const before = await getBalance();
+
+  const settlement = await createSettlement({
+    settledOn: "2026-08-12",
+    amount: "1 000,00",
+    note: "wpis kontrolny",
+  });
+
+  check("kwota wypłaty zapisana", settlement.amount, "1000.00");
+
+  const after = await getBalance();
+  check("wypłata nie rusza zarobionego", after.earned, before.earned);
+  check(
+    "wypłata powiększa wypłacone",
+    after.paid,
+    sumAmounts([before.paid, "1000.00"]),
+  );
+  check(
+    "saldo maleje o kwotę wypłaty",
+    after.outstanding,
+    sumAmounts([before.outstanding, "-1000.00"]),
+  );
+
+  const removed = await deleteSettlement(settlement.id);
+  check("wypłata usunięta", removed?.id, settlement.id);
+  check(
+    "saldo wraca po usunięciu wypłaty",
+    (await getBalance()).outstanding,
+    before.outstanding,
+  );
 }
 
 async function main() {
@@ -103,6 +143,9 @@ async function main() {
   const removed = await deleteInvoice(read.id);
   check("faktura usunięta", removed?.id, read.id);
   check("po usunięciu nie ma jej w bazie", await getInvoice(read.id), null);
+
+  console.log();
+  await checkBalance();
 }
 
 main()

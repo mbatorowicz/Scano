@@ -3,7 +3,8 @@
 Skaner faktur na telefon. Robisz zdjęcie, Gemini odczytuje numer, datę, sprzedawcę, nabywcę
 i kwoty, ty dopisujesz cenę, jaką sam zapłaciłeś za towar, a aplikacja zapisuje fakturę
 w Postgresie i wylicza należność dla ciebie: marżę po VAT 23% i podatku dochodowym 19%
-(brutto − cena dla mnie) / 1,23 / 1,19.
+(brutto − cena dla mnie) / 1,23 / 1,19. W zakładce Rozliczenia dopisujesz wypłaty tej należności
+i widzisz, ile z niej zostało.
 
 Produkcja: https://scano-beta.vercel.app — chroniona jednym hasłem, dodaje się do ekranu
 głównego jako PWA.
@@ -51,12 +52,16 @@ npm run db:generate      # migracja ze zmian w lib/db/schema.ts
 npm run db:migrate       # wykonanie migracji na Neonie
 ```
 
+Drizzle wykonuje tylko migracje **późniejsze** niż ostatnia zapisana w bazie, a pominiętą i tak
+melduje jako „applied successfully". Jeśli świeża migracja nic nie zmieniła, sprawdź pole `when`
+jej wpisu w `lib/db/migrations/meta/_journal.json` — musi być większe niż w poprzedniej.
+
 ## Sprawdzenia
 
 Uruchamiane ręcznie, nie ma tu frameworka testowego:
 
 ```bash
-npm run db:check         # kwoty, należności i zapytania — pełny obieg przez bazę
+npm run db:check         # kwoty, należności, saldo i zapytania — pełny obieg przez bazę
 npm run form:check       # droga od danych z formularza do wiersza w bazie
 npm run scan:check -- ".\samples\faktura-0350.png"   # odczyt AI, wymaga npm run dev
 npm run ai:cost          # porównanie ustawień Gemini: tokeny, czas, trafność

@@ -3,7 +3,8 @@
 Aplikacja PWA, w której robisz telefonem zdjęcie faktury. Gemini odczytuje z niego datę,
 sprzedawcę, nabywcę i wartość, ty dopisujesz cenę, jaką sam zapłaciłeś za towar, a aplikacja
 zapisuje dane w bazie Postgres i wylicza należność dla ciebie: `(brutto − cena dla mnie) / 1,23 / 1,19`,
-czyli marżę po VAT 23% i podatku dochodowym 19%.
+czyli marżę po VAT 23% i podatku dochodowym 19%. Osobny ekran rozliczeń zbiera wypłaty tej
+należności i pokazuje, ile z niej jeszcze zostało do wypłaty.
 
 ## Lista kroków
 
@@ -13,6 +14,7 @@ czyli marżę po VAT 23% i podatku dochodowym 19%.
 - [x] **Etap 4** — Ekran skanowania: aparat, kompresja, formularz korekty, zapis
 - [x] **Etap 5** — Lista faktur, szczegóły, ustawienia, eksport CSV
 - [ ] **Etap 6** — Wdrożenie na Vercel i test na telefonie
+- [x] **Etap 7** — Rozliczanie należności: rejestr wypłat i saldo
 
 Każdy etap jest samodzielny: zaczyna się od opisu stanu wyjściowego i kończy kryterium
 ukończenia, więc można go wykonać bez znajomości poprzednich rozmów.
@@ -84,6 +86,7 @@ app/
   (main)/scan/page.tsx       ekran skanowania
   (main)/scan/scan-form.tsx  aparat, kompresja, wywolanie /api/scan
   (main)/invoice/[id]/       szczegoly faktury: zdjecie, edycja, usuwanie
+  (main)/settlements/        saldo, formularz wyplaty, historia wyplat
   (main)/settings/page.tsx   zuzycie AI, wylogowanie
   api/scan/route.ts          upload zdjecia + odczyt przez Gemini
   api/image/[...path]/       serwowanie prywatnych zdjec z Blob
@@ -100,6 +103,9 @@ lib/
   invoice-schema.ts          walidacja Zod danych z formularza
   invoice-actions.ts         server actions: zapis i usuwanie faktury
   invoice-filters.ts         filtry listy czytane z adresu URL
+  settlement-form.ts         typy i stan formularza wyplaty
+  settlement-schema.ts       walidacja Zod danych wyplaty
+  settlement-actions.ts      server actions: zapis i usuwanie wyplaty
   image.ts                   kompresja zdjecia w przegladarce
   blob.ts                    sciezki i limity zdjec
   payout.ts                  wyliczanie naleznosci po VAT i podatku
@@ -298,6 +304,38 @@ w tych samych danych co skan z telefonu.
 
 **Kryterium ukończenia:** apka pod adresem produkcyjnym, zeskanowanie faktury telefonem kończy
 się wpisem w bazie.
+
+---
+
+# Etap 7 — Rozliczanie należności
+
+**Kontekst startowy:** faktury liczą już należność przy zapisie (Etap 2) i sumują ją na liście
+(Etap 5), ale nigdzie nie widać, ile z tego zostało wypłacone.
+
+Rozliczenie to okrągła kwota (700, 1000, 1300, 1500 zł) wypłacana co kilka tygodni, a nie
+zapłata za konkretne faktury. Dlatego wypłata nie wskazuje żadnej faktury — liczy się samo
+saldo: suma należności minus suma wypłat. Wszystko dotyczy jednego sprzedawcy i wszystkich
+nabywców razem, więc nie ma podziału na kontrahentów.
+
+**Do zrobienia:**
+
+- tabela `settlements`: `settledOn` (date), `amount` (`numeric(12,2)`), `note`, `createdAt`,
+  indeks po dacie; migracja `0003_rozliczenia.sql`
+- `lib/db/queries.ts` — `listSettlements`, `createSettlement`, `deleteSettlement` oraz
+  `getBalance`. Sumy liczy baza (`coalesce(sum(...), 0)::text`) i oddaje jako tekst, bo
+  `numeric` jest dokładny, a `number` po drodze gubiłby grosze
+- saldo zawsze z całości, niezależnie od filtrów listy faktur — to stan konta, a nie widok
+- `lib/settlement-form.ts`, `lib/settlement-schema.ts`, `lib/settlement-actions.ts` wzorem
+  plików faktury; kwota wypłaty musi być większa od zera
+- `app/(main)/settlements/` — karta salda (zarobione, wypłacone, do wypłaty), formularz wypłaty
+  z przyciskami stałych kwot i historia wypłat z usuwaniem przez dialog z potwierdzeniem
+- czwarta pozycja „Rozliczenia" w dolnej nawigacji i pasek salda z linkiem na liście faktur,
+  wyraźnie opisany jako stan całości, żeby nie mylił się z sumami dla aktualnych filtrów
+
+Ujemne saldo to nie błąd, tylko wypłata z góry — ekran nazywa je wtedy „Wypłacone z góry".
+
+**Kryterium ukończenia:** po dodaniu wypłaty saldo na ekranie rozliczeń i na liście faktur
+maleje o dokładnie tę kwotę, a po usunięciu wypłaty wraca do poprzedniej wartości co do grosza.
 
 ---
 

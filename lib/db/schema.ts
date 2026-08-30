@@ -58,6 +58,27 @@ export const invoices = pgTable(
 );
 
 /**
+ * Wypłaty należności. Rozliczenie to okrągła kwota wypłacona co kilka tygodni,
+ * a nie zapłata za konkretne faktury, więc wiersz nie wskazuje żadnej z nich —
+ * liczy się tylko saldo: suma należności minus suma wypłat.
+ */
+export const settlements = pgTable(
+  "settlements",
+  {
+    id: serial("id").primaryKey(),
+    /** Dzień, w którym pieniądze faktycznie do mnie trafiły. */
+    settledOn: date("settled_on").notNull(),
+    amount: amount("amount").notNull(),
+    /** Krótka notatka, np. „gotówka" albo „przelew za lipiec". */
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("settlements_settled_on_idx").on(table.settledOn)],
+);
+
+/**
  * Zużycie modelu przy odczycie faktury. Bez tego licznika nie da się
  * powiedzieć, czy zmiana ustawień Gemini rzeczywiście coś oszczędziła — a przy
  * darmowym limicie z AI Studio to różnica między „działa" a „wróć za minutę".
@@ -81,4 +102,5 @@ export const aiUsage = pgTable(
 
 export type Invoice = typeof invoices.$inferSelect;
 export type NewInvoice = typeof invoices.$inferInsert;
+export type Settlement = typeof settlements.$inferSelect;
 export type AiUsage = typeof aiUsage.$inferSelect;

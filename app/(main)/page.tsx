@@ -1,27 +1,36 @@
 import Link from "next/link";
-import { Camera, Download } from "lucide-react";
+import { Camera, ChevronRight, Download } from "lucide-react";
 
 import { InvoiceFilters } from "@/components/invoice-filters";
 import { InvoiceTable } from "@/components/invoice-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { listInvoices } from "@/lib/db/queries";
+import { getBalance, listInvoices } from "@/lib/db/queries";
 import {
   hasAnyFilter,
   readFilterValues,
   toInvoiceFilters,
   toQueryString,
 } from "@/lib/invoice-filters";
-import { formatCurrency, sumAmounts } from "@/lib/money";
+import { formatCurrency, sumAmounts, toMinorUnits } from "@/lib/money";
 
 export default async function InvoicesPage(props: PageProps<"/">) {
   const values = readFilterValues(await props.searchParams);
-  const invoices = await listInvoices(toInvoiceFilters(values));
+  const [invoices, balance] = await Promise.all([
+    listInvoices(toInvoiceFilters(values)),
+    getBalance(),
+  ]);
 
   const grossTotal = sumAmounts(invoices.map((invoice) => invoice.grossAmount));
   const costTotal = sumAmounts(invoices.map((invoice) => invoice.costAmount));
   const payoutTotal = sumAmounts(invoices.map((invoice) => invoice.payoutAmount));
   const filtered = hasAnyFilter(values);
+
+  const outstanding = toMinorUnits(balance.outstanding) ?? 0n;
+  // Pasek salda pomijamy, dopóki nie ma czego rozliczać — na pustej apce
+  // „Do wypłaty 0,00 zł" to tylko szum.
+  const showBalance =
+    outstanding !== 0n || (toMinorUnits(balance.paid) ?? 0n) !== 0n;
 
   return (
     <div className="space-y-6">
@@ -33,6 +42,27 @@ export default async function InvoicesPage(props: PageProps<"/">) {
       </header>
 
       <InvoiceFilters values={values} />
+
+      {showBalance ? (
+        <Link
+          href="/settlements"
+          className="flex items-center gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+        >
+          <span className="flex-1 space-y-0.5">
+            <span className="block text-xs text-muted-foreground">
+              {outstanding < 0n ? "Wypłacone z góry" : "Do wypłaty"} — ze
+              wszystkich faktur, niezależnie od filtrów
+            </span>
+            <span className="block text-lg font-semibold">
+              {formatCurrency(balance.outstanding)}
+            </span>
+          </span>
+          <ChevronRight
+            className="size-5 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
+        </Link>
+      ) : null}
 
       {invoices.length === 0 ? (
         <Card>

@@ -1,10 +1,16 @@
 import { and, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 
-import { parseAmount } from "@/lib/money";
+import { minorUnitsToDecimal, parseAmount, toMinorUnits } from "@/lib/money";
 import { calculatePayout, normalizeCostAmount } from "@/lib/payout";
 
 import { getDb } from "./index";
-import { aiUsage, invoices, type Invoice } from "./schema";
+import {
+  aiUsage,
+  invoices,
+  settlements,
+  type Invoice,
+  type Settlement,
+} from "./schema";
 
 export type InvoiceInput = {
   invoiceNumber: string;
@@ -209,6 +215,90 @@ function normalizeNip(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null;
   const digits = value.replace(/[^\d]/g, "");
   return digits.length === 0 ? null : digits;
+}
+
+export type SettlementInput = {
+  /** Data wypłaty w formacie ISO (`2026-08-12`). */
+  settledOn: string;
+  amount: string;
+  note?: string | null;
+};
+
+/** Wypłaty od najnowszej; `id` rozstrzyga kolejność w obrębie jednego dnia. */
+export async function listSettlements(): Promise<Settlement[]> {
+  return getDb()
+    .select()
+    .from(settlements)
+    .orderBy(desc(settlements.settledOn), desc(settlements.id));
+}
+
+export async function createSettlement(
+  input: SettlementInput,
+): Promise<Settlement> {
+  const amount = requireAmount(input.amount, "kwota wypłaty");
+  const note = input.note?.trim();
+
+  const [row] = await getDb()
+    .insert(settlements)
+    .values({
+      settledOn: input.settledOn,
+      amount,
+      note: note ? note : null,
+    })
+    .returning();
+
+  return row;
+}
+
+export async function deleteSettlement(id: number): Promise<Settlement | null> {
+  const [row] = await getDb()
+    .delete(settlements)
+    .where(eq(settlements.id, id))
+    .returning();
+  return row ?? null;
+}
+
+export type Balance = {
+  /** Suma należności ze wszystkich faktur. */
+  earned: string;
+  /** Suma wypłat. */
+  paid: string;
+  /** Różnica; ujemna znaczy, że dostałem z góry. */
+  outstanding: string;
+};
+
+/**
+ * Saldo liczymy zawsze na całości, niezależnie od filtrów listy faktur — to stan
+ * konta, a nie widok. Sumy robi baza i oddaje jako tekst, bo `numeric` jest
+ * dokładny, a `number` po drodze gubiłby grosze.
+ */
+export async function getBalance(): Promise<Balance> {
+  const db = getDb();
+
+  const [[earnedRow], [paidRow]] = await Promise.all([
+    db
+      .select({
+        total: sql<string>`coalesce(sum(${invoices.payoutAmount}), 0)::text`,
+      })
+      .from(invoices),
+    db
+      .select({
+        total: sql<string>`coalesce(sum(${settlements.amount}), 0)::text`,
+      })
+      .from(settlements),
+  ]);
+
+  const earned = earnedRow?.total ?? "0.00";
+  const paid = paidRow?.total ?? "0.00";
+  const outstanding = minorUnitsToDecimal(
+    (toMinorUnits(earned) ?? 0n) - (toMinorUnits(paid) ?? 0n),
+  );
+
+  return {
+    earned: minorUnitsToDecimal(toMinorUnits(earned) ?? 0n),
+    paid: minorUnitsToDecimal(toMinorUnits(paid) ?? 0n),
+    outstanding,
+  };
 }
 
 export type AiUsageInput = {

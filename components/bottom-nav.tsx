@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Camera, ReceiptText, Settings } from "lucide-react";
+import { Camera, ReceiptText, Settings, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 type NavItem = {
-  href: "/" | "/scan" | "/settings";
+  href: "/" | "/scan" | "/settlements" | "/settings";
   label: string;
   icon: LucideIcon;
 };
@@ -16,6 +16,7 @@ type NavItem = {
 const items: NavItem[] = [
   { href: "/", label: "Faktury", icon: ReceiptText },
   { href: "/scan", label: "Skanuj", icon: Camera },
+  { href: "/settlements", label: "Rozliczenia", icon: Wallet },
   { href: "/settings", label: "Ustawienia", icon: Settings },
 ];
 
