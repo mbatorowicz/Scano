@@ -37,10 +37,9 @@ export const extractionSchema = z.object({
       "NIP z bloku NABYWCA, same cyfry. Nigdy NIP z bloku ODBIORCA.",
     ),
   /**
-   * Odbiorcy nie zapisujemy, ale musi mieć w odpowiedzi własne miejsce.
-   * Bez tych dwóch pól model wpisywał NIP odbiorcy do `buyerNip` — dane, które
-   * widzi na fakturze, muszą gdzieś trafić, więc lądowały w najbliższym
-   * pasującym polu.
+   * Odbiorca (szkoła, urząd, jednostka) jest tym, co widać na liście.
+   * Własne pola trzymają go z dala od nabywcy — bez nich model wpisywał
+   * NIP odbiorcy do `buyerNip`.
    */
   recipientName: z
     .string()

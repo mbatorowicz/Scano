@@ -21,6 +21,8 @@ const FILLED = {
   sellerNip: "824-116-74-09",
   buyerName: "Gmina Miedzna",
   buyerNip: "8241723514",
+  recipientName: "GOPS Miedzna",
+  recipientNip: "5250000039",
   grossAmount: "750,00 zł",
   netAmount: "609,76",
   vatAmount: "140,24",
@@ -46,6 +48,8 @@ describe("invoiceFormSchema", () => {
     expect(parsed.data.invoiceNumber).toBe("0350/2026");
     expect(parsed.data.sellerName).toBe('F.H.U. "Pecet" Mariusz Szczęsny');
     expect(parsed.data.sellerNip).toBe("8241167409");
+    expect(parsed.data.recipientName).toBe("GOPS Miedzna");
+    expect(parsed.data.recipientNip).toBe("5250000039");
     expect(parsed.data.grossAmount).toBe("750.00");
     expect(parsed.data.netAmount).toBe("609.76");
     expect(parsed.data.costAmount).toBe("700.00");
@@ -83,6 +87,16 @@ describe("invoiceFormSchema", () => {
     expect(errors.vatAmount).toBeUndefined();
     expect(errors.costAmount).toBeUndefined();
     expect(errors.sellerNip).toBeUndefined();
+    expect(errors.recipientName).toBeUndefined();
+    expect(errors.recipientNip).toBeUndefined();
+  });
+
+  it("puste pole odbiorcy nie blokuje zapisu", () => {
+    const parsed = parse({ ...FILLED, recipientName: "", recipientNip: "" });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.recipientName).toBe("");
+    expect(parsed.data.recipientNip).toBeNull();
   });
 
   it("odrzuca kwotę, której nie da się odczytać", () => {

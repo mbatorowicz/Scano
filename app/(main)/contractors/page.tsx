@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { matchKnownSeller } from "@/lib/contractors/known-seller";
 import { listContractors } from "@/lib/contractors/repository";
 
 export const metadata: Metadata = {
@@ -20,14 +21,21 @@ function invoiceCountLabel(count: number): string {
 }
 
 export default async function ContractorsPage() {
-  const contractors = await listContractors();
+  const all = await listContractors();
+  const seller = matchKnownSeller(all);
+  const contractors = all.filter((contractor) => {
+    if (seller !== null && contractor.id === seller.id) return false;
+    // Na liście tylko odbiorcy — nabywca (gmina) zostaje przy fakturze,
+    // ale nie w tym spisie.
+    return contractor.recipientCount > 0 || contractor.invoiceCount === 0;
+  });
 
   return (
     <div className="space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Kontrahenci</h1>
         <p className="text-sm text-muted-foreground">
-          Nabywcy z faktur. Sprzedawca jest zawsze Pecet. Poprawiona nazwa
+          Odbiorcy z faktur. Sprzedawca jest zawsze Pecet. Poprawiona nazwa
           wraca przy następnym skanie i widać ją na wszystkich dokumentach
           tej firmy.
         </p>

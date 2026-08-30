@@ -44,6 +44,10 @@ export default async function InvoicePage(props: PageProps<"/invoices/[id]">) {
     buyerName: invoice.buyerName,
     buyerNip: invoice.buyerNip,
     buyerContractorId: String(invoice.buyerId),
+    recipientName: invoice.recipientName,
+    recipientNip: invoice.recipientNip,
+    recipientContractorId:
+      invoice.recipientId === null ? "" : String(invoice.recipientId),
     grossAmount: formatAmount(invoice.grossAmount),
     netAmount: invoice.netAmount === null ? null : formatAmount(invoice.netAmount),
     vatAmount: invoice.vatAmount === null ? null : formatAmount(invoice.vatAmount),
@@ -67,7 +71,7 @@ export default async function InvoicePage(props: PageProps<"/invoices/[id]">) {
           {invoice.invoiceNumber}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {invoice.sellerName} → {invoice.buyerName}
+          {invoice.recipientName ?? "bez odbiorcy"}
         </p>
       </header>
 

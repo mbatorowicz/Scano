@@ -16,6 +16,9 @@ export type InvoiceFormValues = {
   buyerName: string;
   buyerNip: string;
   buyerContractorId: string;
+  recipientName: string;
+  recipientNip: string;
+  recipientContractorId: string;
   grossAmount: string;
   netAmount: string;
   vatAmount: string;
@@ -34,6 +37,9 @@ export const INVOICE_FIELD_NAMES: readonly InvoiceFieldName[] = [
   "buyerName",
   "buyerNip",
   "buyerContractorId",
+  "recipientName",
+  "recipientNip",
+  "recipientContractorId",
   "grossAmount",
   "netAmount",
   "vatAmount",
@@ -49,6 +55,9 @@ export const EMPTY_INVOICE_FORM_VALUES: InvoiceFormValues = {
   buyerName: "",
   buyerNip: "",
   buyerContractorId: "",
+  recipientName: "",
+  recipientNip: "",
+  recipientContractorId: "",
   grossAmount: "",
   netAmount: "",
   vatAmount: "",
@@ -107,6 +116,7 @@ const HIDDEN_INVOICE_FIELDS: ReadonlySet<InvoiceFieldName> = new Set([
   "costAmount",
   "sellerContractorId",
   "buyerContractorId",
+  "recipientContractorId",
 ]);
 
 export function emptyInvoiceFields(

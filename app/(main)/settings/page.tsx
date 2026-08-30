@@ -96,7 +96,7 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>Kontrahenci</CardTitle>
           <CardDescription>
-            Słownik nabywców. Sprzedawca jest zawsze Pecet. Poprawiona nazwa
+            Słownik odbiorców. Sprzedawca jest zawsze Pecet. Poprawiona nazwa
             wraca przy skanie i widać ją na wszystkich fakturach tej firmy.
           </CardDescription>
         </CardHeader>

@@ -15,7 +15,7 @@ export type InvoiceFilters = {
   from?: string | null;
   /** Koniec zakresu dat wystawienia, ISO. */
   to?: string | null;
-  /** Szukanie po numerze faktury albo nazwie któregokolwiek kontrahenta. */
+  /** Szukanie po numerze faktury albo nazwie odbiorcy. */
   search?: string | null;
 };
 

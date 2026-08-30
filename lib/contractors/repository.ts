@@ -17,6 +17,7 @@ export type ContractorRow = Omit<NewContractor, "id" | "createdAt">;
 
 export type ContractorWithUsage = Contractor & {
   invoiceCount: number;
+  recipientCount: number;
 };
 
 export async function listContractors(): Promise<ContractorWithUsage[]> {
@@ -31,13 +32,22 @@ export async function listContractors(): Promise<ContractorWithUsage[]> {
         select count(*) from ${invoices}
         where ${invoices.sellerId} = ${contractors.id}
            or ${invoices.buyerId} = ${contractors.id}
+           or ${invoices.recipientId} = ${contractors.id}
+      ) as integer)`,
+      recipientCount: sql<number>`cast((
+        select count(*) from ${invoices}
+        where ${invoices.recipientId} = ${contractors.id}
       ) as integer)`,
     })
     .from(contractors)
     .orderBy(contractors.name);
 
   return rows
-    .map((row) => ({ ...row, invoiceCount: Number(row.invoiceCount) }))
+    .map((row) => ({
+      ...row,
+      invoiceCount: Number(row.invoiceCount),
+      recipientCount: Number(row.recipientCount),
+    }))
     .sort(
       (left, right) =>
         right.invoiceCount - left.invoiceCount ||
@@ -71,7 +81,13 @@ export async function countInvoicesForContractor(id: number): Promise<number> {
       total: sql<number>`cast(count(*) as integer)`,
     })
     .from(invoices)
-    .where(or(eq(invoices.sellerId, id), eq(invoices.buyerId, id)));
+    .where(
+      or(
+        eq(invoices.sellerId, id),
+        eq(invoices.buyerId, id),
+        eq(invoices.recipientId, id),
+      ),
+    );
   return Number(row?.total ?? 0);
 }
 

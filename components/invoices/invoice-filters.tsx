@@ -32,7 +32,7 @@ export function InvoiceFilters({ values }: { values: FilterValues }) {
               name={SEARCH_PARAM}
               type="search"
               defaultValue={values.search}
-              placeholder="Numer faktury albo nazwa kontrahenta"
+              placeholder="Numer faktury albo nazwa odbiorcy"
               className="h-12 text-base"
             />
           </div>

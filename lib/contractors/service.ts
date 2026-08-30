@@ -80,6 +80,42 @@ export async function matchExistingContractor(
 }
 
 /**
+ * Odbiorca (szkoła, urząd) często ma ten sam NIP co gmina-nabywca. Tożsamość
+ * bierzemy z nazwy, żeby nie scalić ich w jeden wiersz i nie pokazać gminy
+ * tam, gdzie ma być jednostka.
+ */
+export async function matchExistingRecipient(
+  input: ContractorInput,
+): Promise<Contractor | null> {
+  const name = input.name.trim();
+  if (name === "") return null;
+  return findContractorByMatchKey(nameMatchKey(name));
+}
+
+export async function resolveRecipient(
+  input: ContractorInput,
+): Promise<Contractor | null> {
+  const name = input.name.trim();
+  if (name === "") return null;
+
+  const nip = validNip(input.nip);
+  const byName = await findContractorByMatchKey(nameMatchKey(name));
+  if (byName) {
+    if (byName.nip === null && nip !== null) {
+      const updated = await updateContractorRow(byName.id, {
+        name: byName.name,
+        nip,
+        matchKey: byName.matchKey,
+      });
+      if (updated) return updated;
+    }
+    return byName;
+  }
+
+  return insertOrReuse({ name, nip, matchKey: nameMatchKey(name) });
+}
+
+/**
  * Znajduje kontrahenta albo go dopisuje. Gdy firma była tylko pod nazwą, a teraz
  * przychodzi NIP, podnosimy klucz — nie powstaje drugi wiersz tej samej firmy.
  */

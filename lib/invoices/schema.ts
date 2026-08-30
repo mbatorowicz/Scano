@@ -47,6 +47,11 @@ export const invoiceFormSchema = z.object({
   sellerNip: nip,
   buyerName: text(200, "Podaj nazwę nabywcy."),
   buyerNip: nip,
+  recipientName: z
+    .string()
+    .max(200, "Ta wartość jest za długa.")
+    .transform((value) => value.trim()),
+  recipientNip: nip,
   grossAmount: requiredAmount,
   netAmount: optionalAmount,
   vatAmount: optionalAmount,

@@ -62,6 +62,10 @@ export const invoices = pgTable(
     buyerId: integer("buyer_id")
       .notNull()
       .references(() => contractors.id, { onDelete: "restrict" }),
+    /** Szkoła, urząd, jednostka z bloku ODBIORCA — nie zawsze jest na fakturze. */
+    recipientId: integer("recipient_id").references(() => contractors.id, {
+      onDelete: "restrict",
+    }),
 
     grossAmount: amount("gross_amount").notNull(),
     netAmount: amount("net_amount"),
@@ -88,6 +92,7 @@ export const invoices = pgTable(
     index("invoices_issue_date_idx").on(table.issueDate),
     // Wyszukiwanie duplikatu przy zapisie nowego skanu.
     index("invoices_number_seller_idx").on(table.invoiceNumber, table.sellerId),
+    index("invoices_recipient_id_idx").on(table.recipientId),
   ],
 );
 

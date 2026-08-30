@@ -29,6 +29,8 @@ export type InvoiceWithParties = Invoice & {
   sellerNip: string | null;
   buyerName: string;
   buyerNip: string | null;
+  recipientName: string | null;
+  recipientNip: string | null;
 };
 
 /** Znaki, które w `LIKE` znaczą „cokolwiek" — w tekście od użytkownika mają być zwykłymi znakami. */
@@ -38,8 +40,7 @@ function escapeLikePattern(value: string): string {
 
 function filterConditions(
   filters: InvoiceFilters,
-  sellers: ReturnType<typeof alias<typeof contractors, "sellers">>,
-  buyers: ReturnType<typeof alias<typeof contractors, "buyers">>,
+  recipients: ReturnType<typeof alias<typeof contractors, "recipients">>,
 ): SQL | undefined {
   const conditions: SQL[] = [];
 
@@ -55,8 +56,7 @@ function filterConditions(
     const pattern = `%${escapeLikePattern(search)}%`;
     const match = or(
       ilike(invoices.invoiceNumber, pattern),
-      ilike(sellers.name, pattern),
-      ilike(buyers.name, pattern),
+      ilike(recipients.name, pattern),
     );
     if (match) conditions.push(match);
   }
@@ -67,10 +67,12 @@ function filterConditions(
 function invoicesWithParties() {
   const sellers = alias(contractors, "sellers");
   const buyers = alias(contractors, "buyers");
+  const recipients = alias(contractors, "recipients");
 
   return {
     sellers,
     buyers,
+    recipients,
     query: getDb()
       .select({
         ...getTableColumns(invoices),
@@ -78,10 +80,13 @@ function invoicesWithParties() {
         sellerNip: sellers.nip,
         buyerName: buyers.name,
         buyerNip: buyers.nip,
+        recipientName: recipients.name,
+        recipientNip: recipients.nip,
       })
       .from(invoices)
       .innerJoin(sellers, eq(invoices.sellerId, sellers.id))
-      .innerJoin(buyers, eq(invoices.buyerId, buyers.id)),
+      .innerJoin(buyers, eq(invoices.buyerId, buyers.id))
+      .leftJoin(recipients, eq(invoices.recipientId, recipients.id)),
   };
 }
 
@@ -89,9 +94,9 @@ function invoicesWithParties() {
 export async function listInvoices(
   filters: InvoiceFilters = {},
 ): Promise<InvoiceWithParties[]> {
-  const { sellers, buyers, query } = invoicesWithParties();
+  const { recipients, query } = invoicesWithParties();
   return query
-    .where(filterConditions(filters, sellers, buyers))
+    .where(filterConditions(filters, recipients))
     .orderBy(desc(invoices.issueDate), desc(invoices.id));
 }
 

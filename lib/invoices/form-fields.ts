@@ -36,8 +36,23 @@ export const INVOICE_FORM_SECTIONS: readonly InvoiceFormSection[] = [
   },
   {
     title: "Strony",
-    // Nabywca pierwszy: to on rozróżnia faktury. Sprzedawca jest zawsze Pecet.
+    // Odbiorca pierwszy: to on rozróżnia faktury na liście. Sprzedawca jest
+    // zawsze Pecet, a nabywca (gmina) zostaje w zapisie, ale nie w spisie.
     fields: [
+      {
+        name: "recipientName",
+        label: "Odbiorca",
+        wide: true,
+        kind: "contractor",
+        nipField: "recipientNip",
+        idField: "recipientContractorId",
+      },
+      {
+        name: "recipientNip",
+        label: "NIP odbiorcy",
+        inputMode: "numeric",
+        placeholder: "opcjonalnie",
+      },
       {
         name: "buyerName",
         label: "Nabywca",

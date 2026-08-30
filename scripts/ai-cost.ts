@@ -84,6 +84,8 @@ const FIELDS = [
   "sellerNip",
   "buyerName",
   "buyerNip",
+  "recipientName",
+  "recipientNip",
   "grossAmount",
   "netAmount",
   "vatAmount",

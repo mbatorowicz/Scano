@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { isInvoiceBlobPathname } from "@/lib/blob";
-import { resolveContractor } from "@/lib/contractors/service";
+import {
+  resolveContractor,
+  resolveRecipient,
+} from "@/lib/contractors/service";
 import { formatDate } from "@/lib/dates";
 import {
   failedFormState,
@@ -94,11 +97,17 @@ export async function saveInvoice(
     nip: parsed.data.buyerNip,
   });
 
+  const recipient = await resolveRecipient({
+    name: parsed.data.recipientName,
+    nip: parsed.data.recipientNip,
+  });
+
   const input: InvoiceInput = {
     invoiceNumber: parsed.data.invoiceNumber,
     issueDate: parsed.data.issueDate,
     sellerId: seller.id,
     buyerId: buyer.id,
+    recipientId: recipient?.id ?? null,
     grossAmount: parsed.data.grossAmount,
     netAmount: parsed.data.netAmount,
     vatAmount: parsed.data.vatAmount,

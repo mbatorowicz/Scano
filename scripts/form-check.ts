@@ -11,6 +11,7 @@ import {
   ContractorInUseError,
   deleteContractor,
   resolveContractor,
+  resolveRecipient,
 } from "@/lib/contractors/service";
 import { findDuplicateInvoice, getInvoice } from "@/lib/invoices/repository";
 import {
@@ -42,6 +43,8 @@ const FILLED = {
   sellerNip: "824-116-74-09",
   buyerName: "Gmina Miedzna",
   buyerNip: "8241723514",
+  recipientName: "GOPS Miedzna",
+  recipientNip: "5250000039",
   grossAmount: "750,00 zł",
   netAmount: "609,76",
   vatAmount: "140,24",
@@ -65,12 +68,21 @@ async function main() {
     name: parsed.data.buyerName,
     nip: parsed.data.buyerNip,
   });
+  const recipient = await resolveRecipient({
+    name: parsed.data.recipientName,
+    nip: parsed.data.recipientNip,
+  });
+  if (recipient === null) {
+    failures.push("Nie udało się zapisać odbiorcy z formularza.");
+    return;
+  }
 
   const created = await createInvoice({
     invoiceNumber: parsed.data.invoiceNumber,
     issueDate: parsed.data.issueDate,
     sellerId: seller.id,
     buyerId: buyer.id,
+    recipientId: recipient.id,
     grossAmount: parsed.data.grossAmount,
     netAmount: parsed.data.netAmount,
     vatAmount: parsed.data.vatAmount,
@@ -79,6 +91,7 @@ async function main() {
   });
 
   const read = await getInvoice(created.id);
+  check("odbiorca zapisany", read?.recipientName, "GOPS Miedzna");
   check("faktura z formularza wylądowała w bazie", read?.grossAmount, "750.00");
   check("cena dla mnie zapisana", read?.costAmount, "700.00");
   check("należność policzona przy zapisie", read?.payoutAmount, "34.16");
@@ -101,7 +114,7 @@ async function main() {
 
   check("sprzątanie", (await deleteInvoice(created.id))?.id, created.id);
 
-  for (const party of [seller, buyer]) {
+  for (const party of [seller, buyer, recipient]) {
     try {
       await deleteContractor(party.id);
     } catch (cause) {

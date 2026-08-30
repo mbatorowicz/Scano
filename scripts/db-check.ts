@@ -10,6 +10,7 @@ import {
   ContractorInUseError,
   deleteContractor,
   resolveContractor,
+  resolveRecipient,
 } from "@/lib/contractors/service";
 import {
   findDuplicateInvoice,
@@ -83,12 +84,21 @@ async function main() {
     name: "Gmina Miedzna",
     nip: "8241723514",
   });
+  const recipient = await resolveRecipient({
+    name: "GOPS Miedzna",
+    nip: "5250000039",
+  });
+  if (recipient === null) {
+    failures.push("Nie udało się zapisać odbiorcy.");
+    return;
+  }
 
   const created = await createInvoice({
     invoiceNumber: "TEST/0350/2026",
     issueDate: "2026-08-12",
     sellerId: seller.id,
     buyerId: buyer.id,
+    recipientId: recipient.id,
     grossAmount: "750,00",
     netAmount: "609,76",
     vatAmount: "140,24",
@@ -108,6 +118,7 @@ async function main() {
   check("należność wyliczona przy zapisie", read.payoutAmount, "34.16");
   check("data wystawienia", read.issueDate, "2026-08-12");
   check("NIP bez kresek", read.sellerNip, "8241167409");
+  check("odbiorca zapisany", read.recipientName, "GOPS Miedzna");
 
   const sameSeller = await resolveContractor({
     name: 'p.h.u. "pecet" mariusz szczęsny',
@@ -118,7 +129,7 @@ async function main() {
   const duplicate = await findDuplicateInvoice("TEST/0350/2026", seller.id);
   check("duplikat rozpoznany po numerze i sprzedawcy", duplicate?.id, read.id);
 
-  const found = await listInvoices({ search: "Miedzna", from: "2026-08-01", to: "2026-08-31" });
+  const found = await listInvoices({ search: "GOPS", from: "2026-08-01", to: "2026-08-31" });
   check(
     "faktura widoczna przez filtr daty i szukanie",
     found.some((row) => row.id === read.id),
@@ -131,7 +142,7 @@ async function main() {
   check("faktura usunięta", removed?.id, read.id);
   check("po usunięciu nie ma jej w bazie", await getInvoice(read.id), null);
 
-  for (const party of [seller, buyer]) {
+  for (const party of [seller, buyer, recipient]) {
     try {
       await deleteContractor(party.id);
     } catch (cause) {

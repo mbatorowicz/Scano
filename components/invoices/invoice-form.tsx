@@ -29,7 +29,13 @@ import {
 } from "@/lib/invoices/form";
 import { INVOICE_FORM_SECTIONS } from "@/lib/invoices/form-fields";
 
-type Party = "seller" | "buyer";
+type Party = "seller" | "buyer" | "recipient";
+
+function partyFromField(name: string): Party {
+  if (name.startsWith("seller")) return "seller";
+  if (name.startsWith("recipient")) return "recipient";
+  return "buyer";
+}
 
 function partyFields(party: Party) {
   return {
@@ -114,6 +120,16 @@ export function InvoiceForm({
   function applyNip(party: Party, nip: string) {
     setValues((previous) => {
       const fields = partyFields(party);
+      // Odbiorca często dzieli NIP z gminą — po numerze nie podstawiamy
+      // nabywcy, bo wtedy na liście znów widać gminę zamiast szkoły.
+      if (party === "recipient") {
+        const byName = matchContractorByName(previous[fields.name], directory);
+        return {
+          ...previous,
+          [fields.nip]: nip,
+          [fields.id]: byName ? String(byName.id) : "",
+        };
+      }
       const byNip = matchContractorByNip(nip, directory);
       if (byNip) {
         return {
@@ -180,8 +196,7 @@ export function InvoiceForm({
                 field.nipField !== undefined &&
                 field.idField !== undefined
               ) {
-                const party: Party =
-                  field.name === "sellerName" ? "seller" : "buyer";
+                const party = partyFromField(field.name);
                 return (
                   <ContractorField
                     key={field.name}
@@ -202,12 +217,12 @@ export function InvoiceForm({
                 );
               }
 
-              const partyNip: Party | null =
-                field.name === "sellerNip"
-                  ? "seller"
-                  : field.name === "buyerNip"
-                    ? "buyer"
-                    : null;
+              const partyNip =
+                field.name === "sellerNip" ||
+                field.name === "buyerNip" ||
+                field.name === "recipientNip"
+                  ? partyFromField(field.name)
+                  : null;
 
               return (
                 <InvoiceFormField

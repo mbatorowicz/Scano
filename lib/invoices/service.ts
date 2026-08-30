@@ -28,6 +28,7 @@ export type InvoiceInput = {
   issueDate: string;
   sellerId: number;
   buyerId: number;
+  recipientId?: number | null;
   grossAmount: string;
   netAmount?: string | null;
   vatAmount?: string | null;
@@ -54,6 +55,7 @@ function toRow(input: InvoiceInput, imagePathname: string | null): InvoiceRow {
     issueDate: input.issueDate,
     sellerId: input.sellerId,
     buyerId: input.buyerId,
+    recipientId: input.recipientId ?? null,
     grossAmount,
     netAmount: optionalAmount(input.netAmount),
     vatAmount: optionalAmount(input.vatAmount),

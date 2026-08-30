@@ -16,6 +16,8 @@ export type ExtractedInvoice = {
   sellerNip: string | null;
   buyerName: string | null;
   buyerNip: string | null;
+  recipientName: string | null;
+  recipientNip: string | null;
   grossAmount: string | null;
   netAmount: string | null;
   vatAmount: string | null;
@@ -39,6 +41,8 @@ export function normalize(raw: RawExtraction): ExtractedInvoice {
     sellerNip: validNip(raw.sellerNip),
     buyerName: text(raw.buyerName),
     buyerNip: validNip(raw.buyerNip),
+    recipientName: text(raw.recipientName),
+    recipientNip: validNip(raw.recipientNip),
     grossAmount: positive(grossAmount),
     netAmount: positive(netAmount),
     vatAmount: positive(vatAmount),

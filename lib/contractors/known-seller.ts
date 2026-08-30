@@ -1,7 +1,7 @@
 /**
  * Jedyny sprzedawca w tej aplikacji. Faktury Peceta wymieniają też odbiorcę
- * (urząd, szkoła), ale fakturę wiążemy z nabywcą — sprzedawcy nie odczytujemy
- * za każdym razem, tylko podstawiamy tego, którego już znamy.
+ * (urząd, szkoła) — to on trafia na listę. Sprzedawcy nie odczytujemy za
+ * każdym razem, tylko podstawiamy tego, którego już znamy.
  */
 import type { ContractorOption } from "./form";
 import {
