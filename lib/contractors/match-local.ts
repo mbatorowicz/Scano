@@ -7,19 +7,19 @@ import { validNip } from "@/lib/nip";
 import type { ContractorOption } from "./form";
 import { nameMatchKey } from "./match-key";
 
-export function matchContractorByNip(
+export function matchContractorByNip<T extends ContractorOption>(
   nip: string,
-  contractors: readonly ContractorOption[],
-): ContractorOption | null {
+  contractors: readonly T[],
+): T | null {
   const digits = validNip(nip);
   if (digits === null) return null;
   return contractors.find((row) => row.nip === digits) ?? null;
 }
 
-export function matchContractorByName(
+export function matchContractorByName<T extends ContractorOption>(
   name: string,
-  contractors: readonly ContractorOption[],
-): ContractorOption | null {
+  contractors: readonly T[],
+): T | null {
   const trimmed = name.trim();
   if (trimmed === "") return null;
   const key = nameMatchKey(trimmed);
@@ -32,10 +32,10 @@ export function matchContractorByName(
  * NIP tylko wtedy, gdy należy do jednej firmy. Gmina i szkoła bywają pod
  * tym samym numerem — wtedy zgadywanie podstawiłoby niewłaściwy wiersz.
  */
-export function matchContractorByUniqueNip(
+export function matchContractorByUniqueNip<T extends ContractorOption>(
   nip: string,
-  contractors: readonly ContractorOption[],
-): ContractorOption | null {
+  contractors: readonly T[],
+): T | null {
   const digits = validNip(nip);
   if (digits === null) return null;
   const matches = contractors.filter((row) => row.nip === digits);
@@ -46,23 +46,23 @@ export function matchContractorByUniqueNip(
  * Odbiorca: najpierw nazwa (szkoła to nie gmina), a gdy OCR ją zniekształcił
  * i NIP jest jednoznaczny — ten jeden wiersz ze słownika.
  */
-export function matchRecipient(
+export function matchRecipient<T extends ContractorOption>(
   name: string,
   nip: string,
-  contractors: readonly ContractorOption[],
-): ContractorOption | null {
+  contractors: readonly T[],
+): T | null {
   return (
     matchContractorByName(name, contractors) ??
     matchContractorByUniqueNip(nip, contractors)
   );
 }
 
-export function matchInvoiceParty(
+export function matchInvoiceParty<T extends ContractorOption>(
   party: "seller" | "buyer" | "recipient",
   name: string,
   nip: string,
-  contractors: readonly ContractorOption[],
-): ContractorOption | null {
+  contractors: readonly T[],
+): T | null {
   if (party === "recipient") return matchRecipient(name, nip, contractors);
   return (
     matchContractorByNip(nip, contractors) ??
