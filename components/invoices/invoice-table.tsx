@@ -26,19 +26,19 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceWithParties[] }) {
           <li key={invoice.id}>
             <Link
               href={`/invoices/${invoice.id}`}
-              className="flex items-center gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+              className="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl bg-card p-4 ring-1 ring-foreground/10"
             >
-              <span className="flex-1 space-y-1">
+              <span className="min-w-0 flex-1 space-y-1">
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-sm text-muted-foreground">
+                  <span className="min-w-0 truncate text-sm text-muted-foreground">
                     {index + 1}. {formatDate(invoice.issueDate)}
                   </span>
-                  <span className="font-medium">
+                  <span className="shrink-0 font-medium">
                     {formatCurrency(invoice.grossAmount)}
                   </span>
                 </span>
                 <span className="flex items-baseline justify-between gap-2 text-sm">
-                  <span className="truncate font-medium">
+                  <span className="min-w-0 truncate font-medium">
                     {invoice.recipientName ?? "bez odbiorcy"}
                   </span>
                   <span className="shrink-0 text-muted-foreground">
