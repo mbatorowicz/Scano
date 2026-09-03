@@ -76,6 +76,8 @@ export function matchInvoiceParty<T extends ContractorOption>(
  */
 export function uniqueContractors<T extends ContractorOption>(
   contractors: readonly T[],
+  prefer: (group: readonly T[]) => T = (group) =>
+    group.find((row) => row.nip !== null) ?? group[0],
 ): T[] {
   const groups = new Map<string, T[]>();
   for (const row of contractors) {
@@ -94,11 +96,25 @@ export function uniqueContractors<T extends ContractorOption>(
       for (const row of group) kept.add(row.id);
       continue;
     }
-    const preferred = group.find((row) => row.nip !== null) ?? group[0];
-    kept.add(preferred.id);
+    kept.add(prefer(group).id);
   }
 
   return contractors.filter((row) => kept.has(row.id));
+}
+
+/** Na liście zostaje wiersz, do którego faktycznie wiszą faktury. */
+export function preferUsedContractor<
+  T extends ContractorOption & { invoiceCount: number; recipientCount: number },
+>(group: readonly T[]): T {
+  return group.reduce((best, row) => {
+    if (row.invoiceCount !== best.invoiceCount) {
+      return row.invoiceCount > best.invoiceCount ? row : best;
+    }
+    if (row.recipientCount !== best.recipientCount) {
+      return row.recipientCount > best.recipientCount ? row : best;
+    }
+    return row.id < best.id ? row : best;
+  });
 }
 
 export function filterContractorSuggestions(

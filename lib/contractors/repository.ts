@@ -32,15 +32,19 @@ export async function listContractors(): Promise<ContractorWithUsage[]> {
       nip: contractors.nip,
       matchKey: contractors.matchKey,
       createdAt: contractors.createdAt,
+      // `eq` zostawia prefiks tabeli — goły `${invoices.sellerId} = ${contractors.id}`
+      // schodzi do `seller_id = id` i liczy po `invoices.id`, czyli zawsze zero.
       invoiceCount: sql<number>`cast((
         select count(*) from ${invoices}
-        where ${invoices.sellerId} = ${contractors.id}
-           or ${invoices.buyerId} = ${contractors.id}
-           or ${invoices.recipientId} = ${contractors.id}
+        where ${or(
+          eq(invoices.sellerId, contractors.id),
+          eq(invoices.buyerId, contractors.id),
+          eq(invoices.recipientId, contractors.id),
+        )}
       ) as integer)`,
       recipientCount: sql<number>`cast((
         select count(*) from ${invoices}
-        where ${invoices.recipientId} = ${contractors.id}
+        where ${eq(invoices.recipientId, contractors.id)}
       ) as integer)`,
     })
     .from(contractors)

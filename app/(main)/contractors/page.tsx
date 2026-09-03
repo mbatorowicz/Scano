@@ -4,7 +4,10 @@ import { ChevronRight } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { matchKnownSeller } from "@/lib/contractors/known-seller";
-import { uniqueContractors } from "@/lib/contractors/match-local";
+import {
+  preferUsedContractor,
+  uniqueContractors,
+} from "@/lib/contractors/match-local";
 import { listContractors } from "@/lib/contractors/repository";
 
 export const metadata: Metadata = {
@@ -31,6 +34,7 @@ export default async function ContractorsPage() {
       // ale nie w tym spisie.
       return contractor.recipientCount > 0 || contractor.invoiceCount === 0;
     }),
+    preferUsedContractor,
   );
 
   return (

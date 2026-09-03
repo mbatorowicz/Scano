@@ -7,6 +7,7 @@ import {
   matchContractorByUniqueNip,
   matchInvoiceParty,
   matchRecipient,
+  preferUsedContractor,
   uniqueContractors,
 } from "./match-local";
 
@@ -109,6 +110,14 @@ describe("uniqueContractors", () => {
       nip: "1111111111",
     };
     expect(uniqueContractors([nameKeyed, other])).toEqual([nameKeyed, other]);
+  });
+
+  it("zostawia wiersz z fakturami, nie ten sam NIP bez dokumentów", () => {
+    const unused = { ...nipKeyed, invoiceCount: 0, recipientCount: 0 };
+    const used = { ...nameKeyed, invoiceCount: 1, recipientCount: 1 };
+    expect(uniqueContractors([unused, used], preferUsedContractor)).toEqual([
+      used,
+    ]);
   });
 });
 
