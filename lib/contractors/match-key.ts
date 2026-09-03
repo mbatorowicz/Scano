@@ -66,6 +66,13 @@ export function nameMatchKey(name: string): string {
   return `name:${normalizeContractorName(name)}`;
 }
 
+/** Ta sama firma po nazwie, niezależnie od ozdób i ogonków. */
+export function sameContractorName(left: string, right: string): boolean {
+  const a = left.trim();
+  const b = right.trim();
+  return a !== "" && b !== "" && nameMatchKey(a) === nameMatchKey(b);
+}
+
 /**
  * Klucz dla firmy o podanej nazwie i NIP-ie. NIP inny niż dziesięciocyfrowy
  * traktujemy jak brak — połowa numeru z nieudanego odczytu byłaby gorszym

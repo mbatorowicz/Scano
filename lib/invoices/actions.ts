@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { isInvoiceBlobPathname } from "@/lib/blob";
+import { sameContractorName } from "@/lib/contractors/match-key";
 import {
+  collapseDuplicateContractors,
   resolveContractor,
   resolveRecipient,
 } from "@/lib/contractors/service";
@@ -85,6 +87,8 @@ export async function saveInvoice(
   const confirmed =
     formData.get(DUPLICATE_CONFIRM_FIELD) === DUPLICATE_CONFIRMED_VALUE;
 
+  await collapseDuplicateContractors();
+
   const seller = await resolveContractor({
     name: parsed.data.sellerName,
     nip: parsed.data.sellerNip,
@@ -108,10 +112,14 @@ export async function saveInvoice(
 
   const buyer = await resolveContractor(buyerParty);
 
-  const recipient = await resolveRecipient({
-    name: parsed.data.recipientName,
-    nip: parsed.data.recipientNip,
-  });
+  // Przy ręcznym wpisie nabywca jest kopią odbiorcy — drugi wiersz tej samej
+  // szkoły (raz pod NIP-em, raz pod nazwą) nic nie wnosi.
+  const recipient = sameContractorName(parsed.data.recipientName, buyer.name)
+    ? buyer
+    : await resolveRecipient({
+        name: parsed.data.recipientName,
+        nip: parsed.data.recipientNip,
+      });
 
   const input: InvoiceInput = {
     invoiceNumber: parsed.data.invoiceNumber,
@@ -137,6 +145,7 @@ export async function saveInvoice(
     revalidatePath("/invoices");
     revalidatePath(`/invoices/${saved.id}`);
     revalidatePath("/contractors");
+    revalidatePath("/");
 
     return {
       status: "saved",
@@ -169,5 +178,6 @@ export async function removeInvoice(formData: FormData): Promise<void> {
 
   revalidatePath("/invoices");
   revalidatePath("/contractors");
+  revalidatePath("/");
   redirect("/invoices");
 }

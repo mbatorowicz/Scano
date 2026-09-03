@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { contractorMatchKey, normalizeContractorName } from "./match-key";
+import {
+  contractorMatchKey,
+  normalizeContractorName,
+  sameContractorName,
+} from "./match-key";
 
 describe("contractorMatchKey", () => {
   it("rozstrzyga NIP-em, nawet gdy nazwa wygląda zupełnie inaczej", () => {
@@ -35,6 +39,23 @@ describe("contractorMatchKey", () => {
     expect(contractorMatchKey("Kowalski Transport", null)).not.toBe(
       contractorMatchKey("Kowalski Handel", null),
     );
+  });
+});
+
+describe("sameContractorName", () => {
+  it("uznaje dwa zapisy tej samej szkoły za jedną firmę", () => {
+    expect(
+      sameContractorName(
+        "SZKOŁA PODSTAWOWA IM. TADEUSZA KOŚCIUSZKI W MIEDZNIE",
+        "Szkoła Podstawowa im. Tadeusza Kosciuszki w Miedznie",
+      ),
+    ).toBe(true);
+  });
+
+  it("nie skleja gminy ze szkołą", () => {
+    expect(
+      sameContractorName("Gmina Miedzna", "SZKOŁA PODSTAWOWA W MIEDZNIE"),
+    ).toBe(false);
   });
 });
 

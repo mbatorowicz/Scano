@@ -16,6 +16,7 @@ import type { ContractorOption } from "@/lib/contractors/form";
 import {
   matchContractorByName,
   matchContractorByNip,
+  matchInvoiceParty,
 } from "@/lib/contractors/match-local";
 import {
   DUPLICATE_CONFIRM_FIELD,
@@ -44,6 +45,28 @@ function partyFields(party: Party) {
     nip: `${party}Nip`,
     id: `${party}ContractorId`,
   } as const;
+}
+
+/** Skan i ręczny wpis przychodzą czasem bez id — wtedy podstawiamy wiersz ze słownika. */
+function withKnownContractorIds(
+  values: InvoiceFormValues,
+  contractors: readonly ContractorOption[],
+): InvoiceFormValues {
+  const next = { ...values };
+  for (const party of ["seller", "buyer", "recipient"] as const) {
+    const fields = partyFields(party);
+    if (next[fields.id] !== "") continue;
+    const match = matchInvoiceParty(
+      party,
+      next[fields.name],
+      next[fields.nip],
+      contractors,
+    );
+    if (!match) continue;
+    next[fields.id] = String(match.id);
+    if (next[fields.nip] === "" && match.nip) next[fields.nip] = match.nip;
+  }
+  return next;
 }
 
 /** Przy ręcznym wpisie błąd nabywcy ląduje przy odbiorcy — tego pola nie ma na ekranie. */
@@ -93,7 +116,9 @@ export function InvoiceForm({
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const [values, setValues] = useState(initialValues);
+  const [values, setValues] = useState(() =>
+    withKnownContractorIds(initialValues, contractors),
+  );
   const [renames, setRenames] = useState<Record<number, ContractorOption>>({});
   const directory = contractors.map((row) => renames[row.id] ?? row);
   const [state, formAction, isPending] = useActionState(
@@ -126,7 +151,12 @@ export function InvoiceForm({
   function applyName(party: Party, name: string) {
     setValues((previous) => {
       const fields = partyFields(party);
-      const match = matchContractorByName(name, directory);
+      // Przy odbiorcy tożsamość jest w nazwie: zmiana nazwy nie może
+      // zostawić starej szkoły tylko dlatego, że NIP jeszcze nie zniknął.
+      const match =
+        party === "recipient"
+          ? matchContractorByName(name, directory)
+          : matchInvoiceParty(party, name, previous[fields.nip], directory);
       return {
         ...previous,
         [fields.name]: name,
@@ -142,30 +172,29 @@ export function InvoiceForm({
   function applyNip(party: Party, nip: string) {
     setValues((previous) => {
       const fields = partyFields(party);
-      // Odbiorca często dzieli NIP z gminą — po numerze nie podstawiamy
-      // nabywcy, bo wtedy na liście znów widać gminę zamiast szkoły.
-      if (party === "recipient") {
-        const byName = matchContractorByName(previous[fields.name], directory);
-        return {
-          ...previous,
-          [fields.nip]: nip,
-          [fields.id]: byName ? String(byName.id) : "",
-        };
+      const match = matchInvoiceParty(
+        party,
+        previous[fields.name],
+        nip,
+        directory,
+      );
+      // Odbiorca często dzieli NIP z gminą — po samym numerze nie podmieniamy
+      // nazwy, bo wtedy na liście znów widać gminę zamiast szkoły.
+      if (party !== "recipient") {
+        const byNip = matchContractorByNip(nip, directory);
+        if (byNip) {
+          return {
+            ...previous,
+            [fields.nip]: nip,
+            [fields.name]: byNip.name,
+            [fields.id]: String(byNip.id),
+          };
+        }
       }
-      const byNip = matchContractorByNip(nip, directory);
-      if (byNip) {
-        return {
-          ...previous,
-          [fields.nip]: nip,
-          [fields.name]: byNip.name,
-          [fields.id]: String(byNip.id),
-        };
-      }
-      const byName = matchContractorByName(previous[fields.name], directory);
       return {
         ...previous,
         [fields.nip]: nip,
-        [fields.id]: byName ? String(byName.id) : "",
+        [fields.id]: match ? String(match.id) : "",
       };
     });
   }

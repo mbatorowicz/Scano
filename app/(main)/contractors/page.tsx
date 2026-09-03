@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { matchKnownSeller } from "@/lib/contractors/known-seller";
+import { uniqueContractors } from "@/lib/contractors/match-local";
 import { listContractors } from "@/lib/contractors/repository";
 
 export const metadata: Metadata = {
@@ -23,12 +24,14 @@ function invoiceCountLabel(count: number): string {
 export default async function ContractorsPage() {
   const all = await listContractors();
   const seller = matchKnownSeller(all);
-  const contractors = all.filter((contractor) => {
-    if (seller !== null && contractor.id === seller.id) return false;
-    // Na liście tylko odbiorcy — nabywca (gmina) zostaje przy fakturze,
-    // ale nie w tym spisie.
-    return contractor.recipientCount > 0 || contractor.invoiceCount === 0;
-  });
+  const contractors = uniqueContractors(
+    all.filter((contractor) => {
+      if (seller !== null && contractor.id === seller.id) return false;
+      // Na liście tylko odbiorcy — nabywca (gmina) zostaje przy fakturze,
+      // ale nie w tym spisie.
+      return contractor.recipientCount > 0 || contractor.invoiceCount === 0;
+    }),
+  );
 
   return (
     <div className="space-y-6">

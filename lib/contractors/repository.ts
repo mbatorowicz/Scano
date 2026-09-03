@@ -20,6 +20,10 @@ export type ContractorWithUsage = Contractor & {
   recipientCount: number;
 };
 
+export async function listContractorRows(): Promise<Contractor[]> {
+  return getDb().select().from(contractors);
+}
+
 export async function listContractors(): Promise<ContractorWithUsage[]> {
   const rows = await getDb()
     .select({
@@ -118,4 +122,24 @@ export async function deleteContractorRow(
     .where(eq(contractors.id, id))
     .returning();
   return row ?? null;
+}
+
+/** Przepina faktury ze zdublowanego wiersza na ten, który zostaje. */
+export async function repointContractorInvoices(
+  fromId: number,
+  toId: number,
+): Promise<void> {
+  const db = getDb();
+  await db
+    .update(invoices)
+    .set({ sellerId: toId })
+    .where(eq(invoices.sellerId, fromId));
+  await db
+    .update(invoices)
+    .set({ buyerId: toId })
+    .where(eq(invoices.buyerId, fromId));
+  await db
+    .update(invoices)
+    .set({ recipientId: toId })
+    .where(eq(invoices.recipientId, fromId));
 }
